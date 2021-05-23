@@ -26,7 +26,8 @@ jobs:
       - name: Run Merge Commits
         uses: autamus/merge-commits@test/action
         id: get_commits
-      - name:
+
+      - name: Build Production Containers
         env:
           # Space separated list of versions to build for a named tester
           libabigail_versions: "1.8.2"
@@ -36,6 +37,7 @@ jobs:
 
           # commits from the previous merge-commits action
           commits: ${{steps.get_commits.outputs.commits}}
+
         run: |
             git fetch
             printf "Looking for changes in tester ${{ matrix.tester }}\n"
@@ -51,3 +53,8 @@ jobs:
                     done
                  done
              done
+             
+      - name: Deploy
+        run: |
+            echo ${{ secrets.DOCKER_PASSWORD }} | docker login quay.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+            docker push quay.io/buildsi/${{ matrix.tester }}
