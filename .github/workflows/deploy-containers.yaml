@@ -33,7 +33,7 @@ jobs:
           # registry organization
           registry: quay.io/buildsi
         run: |
-            printf "${{ steps.commits.outputs.commits }}\n"
+           printf "${{ steps.commits.outputs.commits }}\n"
             #git fetch
             #printf "Looking for changes in tester ${{ matrix.tester }}\n"
             #cd docker/${{ matrix.tester }}
