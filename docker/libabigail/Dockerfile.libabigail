@@ -1,7 +1,7 @@
 FROM ubuntu:18.04
-# docker build --build-arg LIBABIGAIL_VERSION=1.8 -t quay.io/buildsi/libabigail:1.8
+# docker build --build-arg LIBRARY_VERSION=1.8 -t quay.io/buildsi/libabigail:1.8
 ENV DEBIAN_FRONTEND=noninteractive
-ARG LIBABIGAIL_VERSION=1.8.2
+ARG LIBRARY_VERSION=1.8.2
 RUN apt-get update && apt-get install -y build-essential \
     libelf-dev \
     libzip-dev \
@@ -23,9 +23,9 @@ RUN apt-get update && apt-get install -y build-essential \
     python3-pip
 
 RUN ldconfig && \ 
-    wget http://mirrors.kernel.org/sourceware/libabigail/libabigail-${LIBABIGAIL_VERSION}.tar.gz && \
-    tar -xvf libabigail-${LIBABIGAIL_VERSION}.tar.gz && \
-    cd libabigail-${LIBABIGAIL_VERSION} && \
+    wget http://mirrors.kernel.org/sourceware/libabigail/libabigail-${LIBRARY_VERSION}.tar.gz && \
+    tar -xvf libabigail-${LIBRARY_VERSION}.tar.gz && \
+    cd libabigail-${LIBRARY_VERSION} && \
     mkdir build && \
     cd build && \
     ../configure --prefix=/usr/local  && \

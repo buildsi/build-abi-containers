@@ -21,14 +21,17 @@ jobs:
         env:
           # Space separated list of versions to build for a named tester
           libabigail_versions: "1.8.2 1.8"
+
+          # registry organization
+          registry: quay.io/buildsi
         run: |
             git fetch
             printf "Looking for changes in tester ${{ matrix.tester }}\n"
             cd docker/${{ matrix.tester }}
             for dockerfile in $(git diff --name-only origin/main HEAD .); do
-                printf "${dockerfile}"
                 versions="${{ matrix.tester }}_versions"
-                for version in ${!versions}; do
-                    printf "${dockerfile} will build ${version}\n"            
+                for version in ${!versions}; do                  
+                    printf "Building ${dockerfile} with version ${version}\n"            
+                    docker build -f ${dockerfile} --build-arg LIBRARY_VERSION=${version} -t ${{ env.registry }}/${{ matrix.tester }}:${version} .
                 done
             done
