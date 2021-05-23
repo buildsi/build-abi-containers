@@ -1,14 +1,7 @@
 name: "Build Containers on Changes"
 
 on:
-  push:
-    paths:
-      - 'docker'
-    branches:
-      - main
   pull_request:
-    paths:
-      - 'docker'
     branches:
       - main
       
