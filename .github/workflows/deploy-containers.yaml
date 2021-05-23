@@ -25,6 +25,7 @@ jobs:
       # This will set output of space separated commits to the job step
       - name: Run Merge Commits
         uses: autamus/merge-commits@test/action
+        id: get_commits
       - name:
         env:
           # Space separated list of versions to build for a named tester
@@ -34,7 +35,7 @@ jobs:
           registry: quay.io/buildsi
 
           # commits from the previous merge-commits action
-          commits: ${{join(steps.commits.outputs.commits, '\n')}}
+          commits: ${{steps.get_commits.outputs.commits}}
         run: |
             printf "${{ env.commits }}\n"
             #git fetch
