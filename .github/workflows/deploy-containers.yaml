@@ -43,8 +43,12 @@ jobs:
             printf "Looking for changes in tester ${{ matrix.tester }}\n"
             cd docker/${{ matrix.tester }}
             versions="${{ matrix.tester }}_versions"
+            newbuilds=no
             for commit in "${{ env.commits }}"; do
+                printf "Looking for changed containers with commit $commit\n"
                 for dockerfile in $(git diff --name-only $commit .); do
+                    printf "Found changed Dockerfile ${dockerfile}\n"
+                    newbuilds=yes
                     filename=$(basename $dockerfile)
                     for version in ${!versions}; do                  
                         container=${{ env.registry }}/${{ matrix.tester }}:${version}
@@ -54,10 +58,14 @@ jobs:
                 done
             done
 
-            docker images
-            echo ${{ secrets.DOCKER_PASSWORD }} | docker login quay.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-            for version in ${!versions}; do
-                container=${{ env.registry }}/${{ matrix.tester }}:${version}
-                printf "Deploying ${container}\n"
-                docker push ${container}
-            done
+            if [ "${newbuilds}" == "yes" ]; then
+                docker images
+                echo ${{ secrets.DOCKER_PASSWORD }} | docker login quay.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+                for version in ${!versions}; do
+                    container=${{ env.registry }}/${{ matrix.tester }}:${version}
+                    printf "Deploying ${container}\n"
+                    docker push ${container}
+                done
+            else
+                printf "No new builds\n"
+            fi
