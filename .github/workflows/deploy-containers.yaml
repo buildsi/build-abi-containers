@@ -32,8 +32,11 @@ jobs:
 
           # registry organization
           registry: quay.io/buildsi
+
+          # commits from the previous merge-commits action
+          commits: ${{join(steps.commits.outputs.commits, '\n')}}
         run: |
-           printf "${{ steps.commits.outputs.commits }}\n"
+            printf "${{ env.commits }}\n"
             #git fetch
             #printf "Looking for changes in tester ${{ matrix.tester }}\n"
             #cd docker/${{ matrix.tester }}
