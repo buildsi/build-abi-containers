@@ -27,7 +27,7 @@ jobs:
         uses: autamus/merge-commits@test/action
         id: get_commits
 
-      - name: Build Production Containers
+      - name: Build and Deploy
         env:
           # Space separated list of versions to build for a named tester
           libabigail_versions: "1.8.2"
@@ -51,10 +51,11 @@ jobs:
                         printf "Building ${dockerfile} with version ${version} to container ${container}\n"  
                         docker build -f ${filename} --build-arg LIBRARY_VERSION=${version} -t ${container} .
                     done
-                 done
-             done
-             
-      - name: Deploy
-        run: |
+                done
+            done
+
             echo ${{ secrets.DOCKER_PASSWORD }} | docker login quay.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-            docker push quay.io/buildsi/${{ matrix.tester }}
+            versions="${{ matrix.tester }}_versions"
+            for version in ${!versions}; do
+                docker push quay.io/buildsi/${{ matrix.tester }}:${version}
+            done
