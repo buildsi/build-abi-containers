@@ -10,16 +10,24 @@ jobs:
     name: Check for Changes
     runs-on: ubuntu-latest
     strategy:
+      # Add new testers here. Each tester needs a subfolder in docker, and a
+      # Dockerfile that accepts a LIBRARY_VERSION variable
       matrix:
         tester: ["libabigail"]
     steps:
       - name: Checkout
         uses: actions/checkout@v2        
       - name: Look for changes in Dockerfiles
-        id: changes
+        env:
+          # Space separated list of versions to build for a named tester
+          libabigail: "1.8.2 1.8"
         run: |
             git fetch
+            printf "Looking for changes in tester ${{ matrix.tester }}\n"
             cd docker/${{ matrix.tester }}
             for dockerfile in $(git diff --name-only origin/main HEAD .); do
-                printf "${dockerfile}\n"
+                versions="${{ matrix.tester }}_versions"
+                for version in ${!versions}; do
+                    printf "${dockerfile} will build ${version}\n"            
+                done
             done
