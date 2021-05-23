@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 # docker build --build-arg LIBRARY_VERSION=1.8 -t quay.io/buildsi/libabigail:1.8
 ENV DEBIAN_FRONTEND=noninteractive
 ARG LIBRARY_VERSION=1.8.2

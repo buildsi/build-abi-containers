@@ -17,10 +17,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2        
-      - name: Look for changes in Dockerfiles
+      - name: Test Building Changes
         env:
           # Space separated list of versions to build for a named tester
-          libabigail_versions: "1.8.2 1.8"
+          libabigail_versions: "1.8.2"
 
           # registry organization
           registry: quay.io/buildsi
@@ -32,7 +32,8 @@ jobs:
                 versions="${{ matrix.tester }}_versions"
                 filename=$(basename $dockerfile)
                 for version in ${!versions}; do                  
-                    printf "Building ${dockerfile} with version ${version}\n"            
-                    docker build -f ${filename} --build-arg LIBRARY_VERSION=${version} -t ${{ env.registry }}/${{ matrix.tester }}:${version} .
+                    container=${{ env.registry }}/${{ matrix.tester }}:${version}
+                    printf "Building ${dockerfile} with version ${version} to container ${container}\n"  
+                    docker build -f ${filename} --build-arg LIBRARY_VERSION=${version} -t ${container} .
                 done
             done
