@@ -30,8 +30,9 @@ jobs:
             cd docker/${{ matrix.tester }}
             for dockerfile in $(git diff --name-only origin/main HEAD .); do
                 versions="${{ matrix.tester }}_versions"
+                filename=$(basename $dockerfile)
                 for version in ${!versions}; do                  
                     printf "Building ${dockerfile} with version ${version}\n"            
-                    docker build -f ${dockerfile} --build-arg LIBRARY_VERSION=${version} -t ${{ env.registry }}/${{ matrix.tester }}:${version} .
+                    docker build -f ${filename} --build-arg LIBRARY_VERSION=${version} -t ${{ env.registry }}/${{ matrix.tester }}:${version} .
                 done
             done
