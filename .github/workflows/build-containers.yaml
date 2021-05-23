@@ -17,6 +17,6 @@ jobs:
         run: |
             git fetch
             cd docker/
-            for dockerfile in $(git diff --name-only main..HEAD .); do
+            for dockerfile in $(git diff --name-only origin/main HEAD .); do
                 printf "${dockerfile}\n"
             done
