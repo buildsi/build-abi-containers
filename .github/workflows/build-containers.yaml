@@ -17,8 +17,6 @@ jobs:
         run: |
             git fetch
             cd docker/
-            branch=${GITHUB_REF##*/}
-            printf "Found branch ${branch}\n"
-            for dockerfile in $(git diff --name-only main..${branch} .); do
+            for dockerfile in $(git diff --name-only main..HEAD .); do
                 printf "${dockerfile}\n"
             done
