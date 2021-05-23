@@ -1,0 +1,32 @@
+name: "Build Containers on Changes"
+
+on:
+  push:
+    paths:
+      - 'docker'
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'docker'
+    branches:
+      - main
+      
+jobs:
+  check:
+    name: Check for Changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2        
+      - name: Look for changes in Dockerfiles
+        id: changes
+        run: |
+            git fetch
+            git diff --name-only main ${GITHUB_REF}
+            cd docker/
+            branch=${GITHUB_REF##*/}
+            printf "Found branch ${branch}\n"
+            for dockerfile in $(git diff --name-only main..${branch} .); do
+                printf "${dockerfile}\n"
+            done
