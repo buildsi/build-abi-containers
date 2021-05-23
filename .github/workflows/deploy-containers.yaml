@@ -37,16 +37,17 @@ jobs:
           # commits from the previous merge-commits action
           commits: ${{steps.get_commits.outputs.commits}}
         run: |
-            printf "${{ env.commits }}\n"
-            #git fetch
-            #printf "Looking for changes in tester ${{ matrix.tester }}\n"
-            #cd docker/${{ matrix.tester }}
-            #for dockerfile in $(git diff --name-only origin/main HEAD .); do
-            #    versions="${{ matrix.tester }}_versions"
-            #    filename=$(basename $dockerfile)
-            #    for version in ${!versions}; do                  
-            #        container=${{ env.registry }}/${{ matrix.tester }}:${version}
-            #        printf "Building ${dockerfile} with version ${version} to container ${container}\n"  
-            #        docker build -f ${filename} --build-arg LIBRARY_VERSION=${version} -t ${container} .
-            #    done
-            #done
+            git fetch
+            printf "Looking for changes in tester ${{ matrix.tester }}\n"
+            cd docker/${{ matrix.tester }}
+            for commit in "${{ env.commits }}"; do
+                for dockerfile in $(git diff --name-only $commit .); do
+                    versions="${{ matrix.tester }}_versions"
+                    filename=$(basename $dockerfile)
+                    for version in ${!versions}; do                  
+                        container=${{ env.registry }}/${{ matrix.tester }}:${version}
+                        printf "Building ${dockerfile} with version ${version} to container ${container}\n"  
+                        docker build -f ${filename} --build-arg LIBRARY_VERSION=${version} -t ${container} .
+                    done
+                 done
+             done
