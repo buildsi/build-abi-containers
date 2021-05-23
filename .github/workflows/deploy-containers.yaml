@@ -24,7 +24,7 @@ jobs:
 
       # This will set output of space separated commits to the job step
       - name: Run Merge Commits
-        uses: autamus/merge-commits@1857889f6a3b023adbc766a67142c245354f4a87
+        uses: autamus/merge-commits@test/action
       - name:
         env:
           # Space separated list of versions to build for a named tester
