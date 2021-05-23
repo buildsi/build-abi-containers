@@ -1,5 +1,5 @@
 FROM ubuntu:18.04
-# docker build -t quay.io/buildsi/libabigail:1.8.2
+# docker build --build-arg LIBABIGAIL_VERSION=1.8 -t quay.io/buildsi/libabigail:1.8
 ENV DEBIAN_FRONTEND=noninteractive
 ARG LIBABIGAIL_VERSION=1.8.2
 RUN apt-get update && apt-get install -y build-essential \
