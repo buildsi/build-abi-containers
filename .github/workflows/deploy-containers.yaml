@@ -44,7 +44,7 @@ jobs:
             cd docker/${{ matrix.tester }}
             versions="${{ matrix.tester }}_versions"
             newbuilds=no
-            for commit in "${{ env.commits }}"; do
+            for commit in $("${{ env.commits }}"); do
                 printf "Looking for changed containers with commit $commit\n"
                 for dockerfile in $(git diff --name-only $commit .); do
                     printf "Found changed Dockerfile ${dockerfile}\n"
