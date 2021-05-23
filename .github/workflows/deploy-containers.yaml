@@ -1,0 +1,48 @@
+name: "Deploy Base Containers"
+
+on:
+  # Just for development for now
+  pull_request: []
+  push:
+    branches:
+      - main
+ 
+jobs:
+  find-commits:
+    runs-on: ubuntu-latest
+    strategy:
+      # Add new testers here. Each tester needs a subfolder in docker, and a
+      # Dockerfile that accepts a LIBRARY_VERSION variable
+      matrix:
+        tester: ["libabigail"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        id: commits
+        with:
+          fetch-depth: '0'
+
+      # This will set output of space separated commits to the job step
+      - name: Run Merge Commits
+        uses: autamus/merge-commits@1857889f6a3b023adbc766a67142c245354f4a87
+      - name:
+        env:
+          # Space separated list of versions to build for a named tester
+          libabigail_versions: "1.8.2"
+
+          # registry organization
+          registry: quay.io/buildsi
+        run: |
+            printf "${{ steps.commits.outputs.commits }}\n"
+            #git fetch
+            #printf "Looking for changes in tester ${{ matrix.tester }}\n"
+            #cd docker/${{ matrix.tester }}
+            #for dockerfile in $(git diff --name-only origin/main HEAD .); do
+            #    versions="${{ matrix.tester }}_versions"
+            #    filename=$(basename $dockerfile)
+            #    for version in ${!versions}; do                  
+            #        container=${{ env.registry }}/${{ matrix.tester }}:${version}
+            #        printf "Building ${dockerfile} with version ${version} to container ${container}\n"  
+            #        docker build -f ${filename} --build-arg LIBRARY_VERSION=${version} -t ${container} .
+            #    done
+            #done
