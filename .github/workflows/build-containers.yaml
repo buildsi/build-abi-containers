@@ -20,12 +20,13 @@ jobs:
       - name: Look for changes in Dockerfiles
         env:
           # Space separated list of versions to build for a named tester
-          libabigail: "1.8.2 1.8"
+          libabigail_versions: "1.8.2 1.8"
         run: |
             git fetch
             printf "Looking for changes in tester ${{ matrix.tester }}\n"
             cd docker/${{ matrix.tester }}
             for dockerfile in $(git diff --name-only origin/main HEAD .); do
+                printf "${dockerfile}"
                 versions="${{ matrix.tester }}_versions"
                 for version in ${!versions}; do
                     printf "${dockerfile} will build ${version}\n"            
