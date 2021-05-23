@@ -15,6 +15,36 @@ examples, and eventually will likely have multiple. The approach we take is the 
  - [docker](docker): includes `Dockerfile`s, one per testing base, that will be deployed to [quay.io/buildsi](https://quay.io/organization/buildsi).
  - [templates](templates): includes container build templates that can start with an autamus base container for some package, and then add layers for the testing software (e.g., libabigail and eventually smeagle). I might also test just installing directly from spack, not decided yet.
 
+## Container Testing Bases
+
+The folder [docker](docker) has subfolders for one or more testing bases, where a testing
+base is a library like libabigail or Smeagle that can be pre-built into a container
+and then used quickly. This means that to add a new testing base you should:
+
+1. Create a subdirectory that matches the name of the tester, e.g [docker/libabigail](docker/libabigail)
+2. Create a Dockerfile in this folder with an ubuntu 18.04 or 20.04 base that installs the testing framework. The executables that the tester needs should be on the path. The Dockerfile should accept a `LIBRRARY_VERSION` build argument that will set one or more versions to build.
+3. In each of [deploy-containers.yaml](.github/workflows/deploy-containers.yaml) and [build-containers.yaml](.github/workflows/build-containers.yaml) add the name of the tester to testers, and add an environment variable `<tester>_versions` that includes a string separated list of versions.
+
+```yaml
+strategy:
+  # Add new testers here. Each tester needs a subfolder in docker, and a
+  # Dockerfile that accepts a LIBRARY_VERSION variable
+  matrix:
+    tester: ["libabigail"]
+steps:
+  - name: Checkout
+    uses: actions/checkout@v2        
+  - name: Test Building Changes
+    env:
+      # Space separated list of versions to build for a named tester
+      libabigail_versions: "1.8.2"
+```
+
+In the above, you see we've added "libabigail" as a tester, and a libabigail_version
+variable to define our versions. This needs to be done with both workflow files. From
+these bases, we will also have a means to test using these containers (not developed yet).
+
+
 ## Development Notes
 
 ### How will it work?
@@ -48,7 +78,7 @@ on the autamus registry, which means that:
  
 We could install with spack natively, but we will save a lot of time using
 pre-built layers. Note that the scripts to make this happen aren't developed
-yet - I need to create the base containers first.
+yet - we just have the base containers.
 
  
 ### Bolo's Notes
