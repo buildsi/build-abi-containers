@@ -16,7 +16,6 @@ jobs:
         id: changes
         run: |
             git fetch
-            git diff --name-only main ${GITHUB_REF}
             cd docker/
             branch=${GITHUB_REF##*/}
             printf "Found branch ${branch}\n"
