@@ -42,9 +42,9 @@ jobs:
             git fetch
             printf "Looking for changes in tester ${{ matrix.tester }}\n"
             cd docker/${{ matrix.tester }}
+            versions="${{ matrix.tester }}_versions"
             for commit in "${{ env.commits }}"; do
                 for dockerfile in $(git diff --name-only $commit .); do
-                    versions="${{ matrix.tester }}_versions"
                     filename=$(basename $dockerfile)
                     for version in ${!versions}; do                  
                         container=${{ env.registry }}/${{ matrix.tester }}:${version}
@@ -54,8 +54,10 @@ jobs:
                 done
             done
 
+            docker images
             echo ${{ secrets.DOCKER_PASSWORD }} | docker login quay.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-            versions="${{ matrix.tester }}_versions"
             for version in ${!versions}; do
-                docker push quay.io/buildsi/${{ matrix.tester }}:${version}
+                container=${{ env.registry }}/${{ matrix.tester }}:${version}
+                printf "Deploying ${container}\n"
+                docker push ${container}
             done
