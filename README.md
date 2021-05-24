@@ -45,7 +45,7 @@ variable to define our versions. This needs to be done with both workflow files.
 When a file is changed in one of these folders, it will be built with CI via `build-containers.yaml`
 and then deployed on merge to master with `deploy-containers.yaml`
 
-**Important: you must not squash commits for the deployment to work!**
+**Note: You should always merge only one clean commit into master, so take care to rebase in PRs and write good messages!**
 
 From these bases, we will also have a means to test using these containers (not developed yet).
 
