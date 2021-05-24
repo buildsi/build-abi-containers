@@ -16,14 +16,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        id: commits
         with:
           fetch-depth: '0'
-
-      # This will set output of space separated commits to the job step
-      - name: Run Merge Commits
-        uses: autamus/merge-commits@test/action
-        id: get_commits
 
       - name: Build and Deploy
         env:
@@ -33,9 +27,6 @@ jobs:
           # registry organization
           registry: quay.io/buildsi
 
-          # commits from the previous merge-commits action
-          commits: ${{steps.get_commits.outputs.commits}}
-
         run: |
             git fetch
             printf "Looking for changes in tester ${{ matrix.tester }}\n"
@@ -43,20 +34,16 @@ jobs:
             versions="${{ matrix.tester }}_versions"
             newbuilds=no
 
-            # We will be splitting the commits by space
-            IFS=' '
-            read -ra COMMITS <<< "${{ env.commits }}";
-            for commit in "${COMMITS[@]}"; do
-                printf "Looking for changed containers with commit $commit\n"
-                for dockerfile in $(git diff --name-only $commit .); do
-                    printf "Found changed Dockerfile ${dockerfile}\n"
-                    newbuilds=yes
-                    filename=$(basename $dockerfile)
-                    for version in ${!versions}; do                  
-                        container=${{ env.registry }}/${{ matrix.tester }}:${version}
-                        printf "Building ${dockerfile} with version ${version} to container ${container}\n"  
-                        docker build -f ${filename} --build-arg LIBRARY_VERSION=${version} -t ${container} .
-                    done
+            commit=$(git rev-parse HEAD)
+            printf "Looking for changed containers with commit $commit\n"
+            for dockerfile in $(git diff --name-only $commit .); do
+                printf "Found changed Dockerfile ${dockerfile}\n"
+                newbuilds=yes
+                filename=$(basename $dockerfile)
+                for version in ${!versions}; do                  
+                    container=${{ env.registry }}/${{ matrix.tester }}:${version}
+                    printf "Building ${dockerfile} with version ${version} to container ${container}\n"  
+                    docker build -f ${filename} --build-arg LIBRARY_VERSION=${version} -t ${container} .
                 done
             done
 
