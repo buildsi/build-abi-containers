@@ -41,8 +41,13 @@ steps:
 ```
 
 In the above, you see we've added "libabigail" as a tester, and a libabigail_version
-variable to define our versions. This needs to be done with both workflow files. From
-these bases, we will also have a means to test using these containers (not developed yet).
+variable to define our versions. This needs to be done with both workflow files. 
+When a file is changed in one of these folders, it will be built with CI via `build-containers.yaml`
+and then deployed on merge to master with `deploy-containers.yaml`
+
+**Important: you must not squash commits for the deployment to work!**
+
+From these bases, we will also have a means to test using these containers (not developed yet).
 
 
 ## Development Notes
