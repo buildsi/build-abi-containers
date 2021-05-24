@@ -1,0 +1,5 @@
+tester:
+  name: libabigail
+  version: 1.8.2
+  runscript: runtests.sh
+  entrypoint: /bin/bash

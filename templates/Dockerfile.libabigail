@@ -1,7 +1,0 @@
-FROM ghcr.io/autamus/{{ package.name }}:{{ package.version }} as base
-COPY --from=base /opt/view /opt/view
-FROM quay.io/build-si/libabigail
-# the file above with the metadata to parse
-COPY tests/mpich.yaml /build-si/tests.yaml
-ENV spack_package=mpich@3.2.1
-ENTRYPOINT /build-si/runtests.py

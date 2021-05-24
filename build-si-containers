@@ -1,0 +1,313 @@
+#!/usr/bin/env python3
+
+# run-tests will do the following:
+# 1. take one or more test names (e.g., mpich) from the command line
+#    we default to all test files found in tests/
+# 2. take one or more testers found in testers/ (default to all testers)
+# 3. For each test, for each tester, build a container that spack installs the
+#    software on top of the testers container.
+# 4. Install the script/library here to run the tests
+# 5. Output should be saved to a namespaced folder, <tester>/<package>
+# 6. And we will need a way to compare output...
+
+
+# TODO make a script for the tester,
+# make this into a little package?
+# how should the tests be run?
+
+import argparse
+import shutil
+import logging
+import tempfile
+import jsonschema
+import os
+import re
+import json
+import calendar
+import subprocess
+import time
+import shutil
+import yaml
+import sys
+
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+logging.basicConfig(level=logging.INFO)
+
+# We want the root
+here = os.path.abspath(os.path.dirname(__file__))
+
+env = Environment(
+    autoescape=select_autoescape(["html"]), loader=FileSystemLoader("templates")
+)
+
+config_schema = {
+    "$schema": "http://json-schema.org/schema#",
+    "title": "build-abi-containers package schema",
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "package": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "name": {"type": "string"},
+                "versions": {"type": "array", "items": {"type": "string"}},
+                "headers": {"type": "array", "items": {"type": "string"}},
+                "libs": {"type": "array", "items": {"type": "string"}},
+            },
+        }
+    },
+}
+
+tester_schema = {
+    "$schema": "http://json-schema.org/schema#",
+    "title": "build-abi-containers tester schema",
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "tester": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "name": {"type": "string"},
+                "runscript": {"type": "string"},
+                "entrypoint": {"type": "string"},
+                "version": {"type": "string"},
+            },
+        }
+    },
+}
+
+
+class Tester:
+    def __init__(self, tester_config):
+        """A tester is software like libabigail to analyze ABI"""
+        self.config = read_yaml(tester_config)
+        jsonschema.validate(self.config, schema=tester_schema)
+
+    @property
+    def version(self):
+        return self.config["tester"]["version"]
+
+    @property
+    def name(self):
+        return self.config["tester"]["name"]
+
+    @property
+    def entrypoint(self):
+        return self.config["tester"]["entrypoint"]
+
+    @property
+    def runscript(self):
+        return self.config["tester"]["runscript"]
+
+
+class TestPackage:
+    def __init__(self, package_config):
+        """A package to be tested with a tester."""
+        self.config = read_yaml(package_config)
+        jsonschema.validate(self.config, schema=config_schema)
+
+    @property
+    def versions(self):
+        return self.config["package"]["versions"]
+
+    @property
+    def libs(self):
+        return self.config["package"]["libs"]
+
+    @property
+    def include(self):
+        return self.config["package"]["include"]
+
+    @property
+    def name(self):
+        return self.config["package"]["name"]
+
+
+class TestSetup:
+    def __init__(self, root):
+        """A build-si-containers test setup will look for tests/testers"""
+        self.root = root
+        self.check_root()
+        self.load_testers()
+
+    @property
+    def test_dir(self):
+        return os.path.join(self.root, "tests")
+
+    @property
+    def templates_dir(self):
+        return os.path.join(self.root, "templates")
+
+    @property
+    def testers_dir(self):
+        return os.path.join(self.root, "testers")
+
+    def load_testers(self):
+        """load tester names based on the Dockerfile extensions"""
+        self.testers = set()
+        for tester in os.listdir(self.testers_dir):
+            self.testers.add(re.sub("[.](yml|yaml)", "", tester))
+
+    def check_root(self):
+        """Ensure that the root is structured correctly."""
+        for path in self.root, self.test_dir, self.testers_dir, self.templates_dir:
+            if not os.path.exists(path):
+                sys.exit("% does not exist in the root!" % path)
+
+    def build(self, package, testers):
+        """Create a Dockerfile and build"""
+        package_file = os.path.join(self.test_dir, "%s.yaml" % package)
+        if not os.path.exists(package_file):
+            sys.exit("Package file %s does not exist." % package_file)
+
+        # Create the package to test
+        package = TestPackage(package_file)
+
+        # For each testing container, and each version, build
+        for tester in self.testers:
+
+            # Get the tester build template
+            template = self.get_tester_template(tester)
+            tester = Tester(self.get_tester_config(tester))
+
+            for version in package.versions:
+
+                # Does the tester have extra scripts?
+                bins = []
+                tester_bin = os.path.join(self.testers_dir, tester.name, "bin")
+                if os.path.exists(tester_bin):
+                    for filename in os.listdir(tester_bin):
+                        bins.append(filename)
+
+                # Render the template and runtests.py file
+                runscript = self.get_tester_runscript(tester).render(
+                    package=package, tester=tester, version=version
+                )
+                out = template.render(
+                    package=package, tester=tester, version=version, bins=bins
+                )
+                container_name = "quay.io/buildsi/libabigail-test-%s:%s" % (
+                    package.name,
+                    version,
+                )
+
+                with tempfile.TemporaryDirectory() as tmp:
+                    write_file(out, os.path.join(tmp, "Dockerfile"))
+                    write_file(runscript, os.path.join(tmp, tester.runscript))
+                    shutil.copyfile(
+                        package_file, os.path.join(tmp, os.path.basename(package_file))
+                    )
+
+                    # If we have extra files to add, copy them
+                    for binfile in bins:
+                        shutil.copyfile(
+                            os.path.join(tester_bin, binfile),
+                            os.path.join(tmp, binfile),
+                        )
+
+                    cmd = ["docker", "build", "-t", container_name, tmp]
+                    res = subprocess.call(cmd)
+                    if res != 0:
+                        sys.exit("Error building %s" % container_name)
+
+    def get_tester_config(self, tester):
+        """Given a package and tester, return the tester config."""
+        config_file = os.path.join(self.testers_dir, tester, "tester.yaml")
+        if not os.path.exists(config_file):
+            sys.exit("%s does not exist!" % config_file)
+        return config_file
+
+    def get_tester_runscript(self, tester):
+        """Get the runscript for the tester"""
+        template = os.path.join(self.templates_dir, tester.name, tester.runscript)
+        if not os.path.exists(template):
+            sys.exit("Tester runscript %s does not exist!" % template)
+        template = template.replace(self.templates_dir, "").strip("/")
+        return env.get_template(template)
+
+    def get_tester_template(self, tester):
+        """Given a package and tester, return the container template."""
+        dockerfile = os.path.join(self.templates_dir, tester, "Dockerfile")
+        if not os.path.exists(dockerfile):
+            dockerfile = os.path.join(self.templates_dir, "Dockerfile.default")
+        dockerfile = dockerfile.replace(self.templates_dir, "").strip("/")
+        return env.get_template(dockerfile)
+
+
+def read_yaml(filename):
+    with open(filename, "r") as fd:
+        content = yaml.load(fd, Loader=yaml.FullLoader)
+    return content
+
+
+def write_file(content, filename):
+    with open(filename, "w") as fd:
+        fd.write(content)
+
+
+def get_parser():
+    parser = argparse.ArgumentParser(description="Build SI Container Tester")
+
+    description = "actions for testing containers for the BUILD SI project"
+    subparsers = parser.add_subparsers(
+        help="run-tests actions",
+        title="actions",
+        description=description,
+        dest="command",
+    )
+
+    # Run a complete test, which includes building the test container
+    test = subparsers.add_parser("test", help="run tests.")
+
+    # Build a testing container
+    build = subparsers.add_parser("build", help="build a testing container.")
+
+    for command in [test, build]:
+        command.add_argument("packages", help="packages to test", nargs="+")
+        command.add_argument(
+            "--root",
+            "-r",
+            dest="root",
+            help="The root with the tests and testers directories.",
+            default=os.getcwd(),
+        )
+        command.add_argument(
+            "--tester",
+            "-t",
+            dest="tester",
+            help="The tester to run tests for.",
+            choices=["libabigail", "all"],
+            default="all",
+        )
+    return parser
+
+
+def main():
+    """
+    Entrypoint for running tests.
+    """
+    parser = get_parser()
+
+    def help(return_code=0):
+        parser.print_help()
+        sys.exit(return_code)
+
+    # If an error occurs while parsing the arguments, the interpreter will exit with value 2
+    args, extra = parser.parse_known_args()
+    if not args.command:
+        help()
+
+    setup = TestSetup(args.root)
+
+    if args.command == "build":
+        for package in args.packages:
+            setup.build(package, args.tester)
+    else:
+        help()
+
+
+if __name__ == "__main__":
+    main()

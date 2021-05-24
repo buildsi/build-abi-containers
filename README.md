@@ -3,27 +3,168 @@
 **under development**
 
 The goal of this repository is to provide container environments for
-evaluating ABI, and to run tests for ABI in the CI. We currently just have one container that provides several
-examples, and eventually will likely have multiple. The approach we take is the following:
+evaluating ABI, and to run tests for ABI in the CI. The approach we take is the following:
 
- - provide base containers with tools to test abi. This means that we have base containers with spack, and then derivations of those with different ABI testing libraries.
+ - provide base containers with tools to test abi.
  - For some number of packages, define libraries and binaries within to build and test.
- - generate output logs for different tools
+ - Build a testing container on top of a base container, with an [autamus](https://autamus.io) package added via multistage build.
+ - Run the entrypoint of the container with a local volume to run tests and generate output.
 
 ## Organization
 
  - [docker](docker): includes `Dockerfile`s, one per testing base, that will be deployed to [quay.io/buildsi](https://quay.io/organization/buildsi).
- - [templates](templates): includes container build templates that can start with an autamus base container for some package, and then add layers for the testing software (e.g., libabigail and eventually smeagle). I might also test just installing directly from spack, not decided yet.
+ - [tests](tests): includes yaml config files that are matched to a spack package to test (or more generally an autamus container). The configs are validate when loaded.
+ - [testers](testers): is an folder of scripts
+ - [templates](templates): includes both container build templates, and tester runtime templates. The container build templates.
 
-## Container Testing Bases
+## Usage
 
-The folder [docker](docker) has subfolders for one or more testing bases, where a testing
-base is a library like libabigail or Smeagle that can be pre-built into a container
-and then used quickly. This means that to add a new testing base you should:
+### Build and Run Tests
+
+#### 0. Install dependencies
+
+Make sure you have the dependencies installed.
+
+```bash
+$ pip install -r requirements.txt
+```
+
+#### 1. Build a container
+
+The first thing you likely want to do is build your testing container. We will
+be doing a multi-stage build with a testing base from [quay.io/buildsi](https://quay.io/organization/buildsi), combined with a package of interest from [autamus](https://autamus.io).
+To just build the container, for example to test "mpich" which has a yaml file in
+[tests](tests) you can do:
+
+```bash
+./build-si-containers build mpich
+```
+
+If we can add these steps to CI, perhaps on any change of a tester or package, then
+the containers will be ready to go to produce results.
+
+#### 2. Run Tests
+
+Once your container is built, testing is just running it!
+
+```bash
+$ docker run -it quay.io/buildsi/libabigail-test-mpich:3.4.1
+```
+
+Running the container will generate results within the container. if you want
+to save them locally, you need to bind to `/results` in the container.
+
+```bash
+$ docker run -v $PWD/results:/results -it quay.io/buildsi/test-mpich
+```
+
+**under development!** The above is not finished yet.
+
+### Add a Tester
+
+A tester is a base for running some kind of test on a binary. When you add a tester
+you need to:
+
+ 1. Give the tester a name (e.g., libabigail) to use across files.
+ 2. Create the tester's config file
+ 3. Create the tester runscript (and additional scripts)
+ 4. Create a Dockerfile base template in [docker](docker) in a subdirectory named for the tester.
+ 5. Create a Dockerfile test template in [templates](templates) also in a subfolder named for the tester.
+ 6. Add the tester to the CI so the bases are built automatically.
+ 
+Each of these steps will be discussed in detail.
+ 
+#### 1. Give the tester a name
+
+You should choose a simple, lowercase name to identify your tester, and this will
+be used for the subfolders and identifiers of the tester.
+
+#### 2. Create the tester config file
+
+For now, testers typically just need a name and a version, and an entrypoint
+and script to run, which will be written to `/build-si/`. So you should write
+a config file named `tester.yaml` in the [testers](testers) directory in a subfolder
+named for the tester. For example, libabigail looks like:
+
+```yaml
+tester:
+  name: libabigail
+  version: 1.8.2
+  runscript: runtests.sh
+  entrypoint: /bin/bash
+```
+
+And is located at:
+
+```yaml
+testers/
+└── libabigail
+    ├── bin
+    │   └── abi-decode
+    └── tester.yaml
+```
+
+Any files that you add in bin will be added to /usr/local/bin, the idea being
+you can write extra scripts for the tester to use. For now we are just supporting one version of a tester.
+
+#### 3. Create the tester runscript
+
+See in the above the filename "runtests.sh"? This needs to be found in the templates
+folder in the tester directory:
+
+```bash
+templates/
+├── Dockerfile.default
+└── libabigail
+    └── runtests.sh
+```
+
+It should accept a package object, a tester object, and a version,
+and write results to be organized at /results as follows:
+
+```bash
+/results/{{ tester name }}/{{ tester version }}/{{ package name }}/{{ package version }}
+```
+
+The results will likely need to be parsed to put them into some cohesive format,
+when we know what we want.
+
+#### 4. Create Dockerfile base template
+
+The Dockerfile base templates are in [docker](docker), in subfolders named for
+the testers. These bases will be built automatically on any changes to the files,
+and deployed to [quay.io/buildsi](https://quay.io/organization/buildsi). The purpose
+of these containers is to provide a base that has the testing software, onto which
+we can install a package and run tests. This means that to add a new testing base you should:
 
 1. Create a subdirectory that matches the name of the tester, e.g [docker/libabigail](docker/libabigail)
-2. Create a Dockerfile in this folder with an ubuntu 18.04 or 20.04 base that installs the testing framework. The executables that the tester needs should be on the path. The Dockerfile should accept a `LIBRRARY_VERSION` build argument that will set one or more versions to build.
-3. In each of [deploy-containers.yaml](.github/workflows/deploy-containers.yaml) and [build-containers.yaml](.github/workflows/build-containers.yaml) add the name of the tester to testers, and add an environment variable `<tester>_versions` that includes a string separated list of versions.
+2. Create a Dockerfile in this folder with an ubuntu 18.04 or 20.04 base that installs the testing framework. The executables that the tester needs should be on the path. The Dockerfile should accept a `LIBRARY_VERSION` build argument that will set one or more versions to build. You don't need to worry about an `ENTRYPOINT`, as it will be set on the build of the package testing container.
+
+#### 5. Create Dockerfile test template
+
+The Dockerfile test template is optional, and will be used to generate
+a multi-stage build for a given package, package version, and tester.
+If you don't create a package build template, the default will be used, [templates/Dockerfile.default](templates/Dockerfile.default). If you do create a template,
+it can use the following variables:
+
+* package.name: The name of the package to install (e.g., mpich)
+* version: The version of the package to install
+* tester.name: The name of the tester (e.g., libabigail)
+* tester.version: The version of the tester
+
+The entrypoint should always be a python 3 command to run the runtests.py script,
+which is generated based on the template.
+
+```
+ENTRYPOINT /build-si/runtests.py
+```
+
+We are also suggesting the convention of storing the script in the `build-si` directory
+at the root of the container.
+
+#### 6. Add the tester to the CI
+
+In each of [deploy-containers.yaml](.github/workflows/deploy-containers.yaml) and [build-containers.yaml](.github/workflows/build-containers.yaml) add the name of the tester to testers, and add an environment variable `<tester>_versions` that includes a string separated list of versions.
 
 ```yaml
 strategy:
@@ -48,7 +189,6 @@ and then deployed on merge to master with `deploy-containers.yaml`
 **Note: You should always merge only one clean commit into master, so take care to rebase in PRs and write good messages!**
 
 From these bases, we will also have a means to test using these containers (not developed yet).
-
 
 ## Development Notes
 

@@ -1,0 +1,29 @@
+#!/usr/bin/awk -f
+BEGIN {
+	bits[0] = "ERROR";
+	bits[1] = "USAGE";
+	bits[2] = "ABI-CHANGE";
+	bits[3] = "ABI-INCOMPAT";
+}
+
+NF == 1 {
+	legit++;
+	status = $1;
+	mask = 1;
+	for (i = 0; i < 4; i++) {
+		if (and(status,  mask)) {
+			if (!header) {
+				printf("ABI STATUS == %d\n", status);
+				printf("-----------------\n");
+				header++;
+			}
+			printf("%s\n", bits[i]);
+		}
+		mask *= 2;
+	}
+}
+
+END {
+	if (!header)
+		printf("ABI STATUS == %d\n", status);
+}
