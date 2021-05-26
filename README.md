@@ -7,7 +7,7 @@ evaluating ABI, and to run tests for ABI in the CI. The approach we take is the 
 
  - provide base containers with tools to test abi.
  - For some number of packages, define libraries and binaries within to build and test.
- - Build a testing container on top of a base container, with an [autamus](https://autamus.io) package added via multistage build.
+ - Build a testing container on top of a base container, with an [autamus](https://autamus.io) package added via multistage build. We might change this to use a spack build cache instead, but right now I'm testing with autamus containers.
  - Run the entrypoint of the container with a local volume to run tests and generate output.
 
 ## Organization
@@ -32,8 +32,10 @@ $ pip install -r requirements.txt
 #### 1. Build a container
 
 The first thing you likely want to do is build your testing container. We will
-be doing a multi-stage build with a testing base from [quay.io/buildsi](https://quay.io/organization/buildsi), combined with a package of interest from [autamus](https://autamus.io).
-To just build the container, for example to test "mpich" which has a yaml file in
+be doing a multi-stage build with a testing base from [quay.io/buildsi](https://quay.io/organization/buildsi), combined with a package of interest from [autamus](https://autamus.io). The container from autamus currently has multiple versions
+of the same package installed, as this is what Bolo was doing. But we can change this to, for
+example, install any set of packages on demand from a spack build cache. So to build the container
+for example to test "mpich" which has a yaml file in
 [tests](tests) you can do:
 
 ```bash
@@ -48,17 +50,42 @@ the containers will be ready to go to produce results.
 Once your container is built, testing is just running it!
 
 ```bash
-$ docker run -it quay.io/buildsi/libabigail-test-mpich:3.4.1
+$ docker run -it quay.io/buildsi/libabigail-test-mpich:latest
 ```
 
+You'll see a bunch of commands printed to the screen for the tester.
 Running the container will generate results within the container. if you want
-to save them locally, you need to bind to `/results` in the container.
+to save files generated locally, you need to bind to `/results` in the container.
 
 ```bash
-$ docker run -v $PWD/results:/results -it quay.io/buildsi/test-mpich
+$ mkdir -p results
+$ docker run -v $PWD/results:/results -it quay.io/buildsi/libabigail-test-mpich:latest
+$ tree results/
+results/
+└── libabigail
+    └── 1.8.2
+        └── mpich
+            ├── 3.0.4
+            │   └── lib
+            │       ├── libmpich.so.xml
+            │       └── libmpich.so.xml.log
+...
+            ├── 3.4.1
+            │   └── lib
+            │       ├── libmpich.so.xml
+            │       └── libmpich.so.xml.log
+            └── diff
+                ├── 3.0.4-3.0.4
+                ├── 3.0.4-3.0.4.log
+                ├── 3.0.4-3.1.4
+...
+                ├── 3.3.2-3.4.1.log
+                ├── 3.4.1-3.0.4
+                └── 3.4.1-3.0.4.log
 ```
 
-**under development!** The above is not finished yet.
+We will want to run this in some CI, and upload results to save somewhere (this is not
+done yet).
 
 ### Add a Tester
 
@@ -152,13 +179,7 @@ it can use the following variables:
 * tester.name: The name of the tester (e.g., libabigail)
 * tester.version: The version of the tester
 
-The entrypoint should always be a python 3 command to run the runtests.py script,
-which is generated based on the template.
-
-```
-ENTRYPOINT /build-si/runtests.py
-```
-
+The entrypoint will be added dynamically based on the tester.entrypoint, and tester.runscript.
 We are also suggesting the convention of storing the script in the `build-si` directory
 at the root of the container.
 

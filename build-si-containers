@@ -119,7 +119,7 @@ class TestPackage:
 
     @property
     def include(self):
-        return self.config["package"]["include"]
+        return self.config["package"]['headers']
 
     @property
     def name(self):
@@ -173,45 +173,37 @@ class TestSetup:
             template = self.get_tester_template(tester)
             tester = Tester(self.get_tester_config(tester))
 
-            for version in package.versions:
+            # Right now one container has all versions
+            # Does the tester have extra scripts?
+            bins = []
+            tester_bin = os.path.join(self.testers_dir, tester.name, "bin")
+            if os.path.exists(tester_bin):
+                for filename in os.listdir(tester_bin):
+                    bins.append(filename)
 
-                # Does the tester have extra scripts?
-                bins = []
-                tester_bin = os.path.join(self.testers_dir, tester.name, "bin")
-                if os.path.exists(tester_bin):
-                    for filename in os.listdir(tester_bin):
-                        bins.append(filename)
+            # Render the template and runtests.py file
+            runscript = self.get_tester_runscript(tester).render(package=package, tester=tester)
+            out = template.render(package=package, tester=tester, bins=bins)
+            container_name = "quay.io/buildsi/libabigail-test-%s:latest" % package.name
 
-                # Render the template and runtests.py file
-                runscript = self.get_tester_runscript(tester).render(
-                    package=package, tester=tester, version=version
-                )
-                out = template.render(
-                    package=package, tester=tester, version=version, bins=bins
-                )
-                container_name = "quay.io/buildsi/libabigail-test-%s:%s" % (
-                    package.name,
-                    version,
+            with tempfile.TemporaryDirectory() as tmp:
+                write_file(out, os.path.join(tmp, "Dockerfile"))
+                write_file(runscript, os.path.join(tmp, tester.runscript))
+                shutil.copyfile(
+                    package_file, os.path.join(tmp, os.path.basename(package_file))
                 )
 
-                with tempfile.TemporaryDirectory() as tmp:
-                    write_file(out, os.path.join(tmp, "Dockerfile"))
-                    write_file(runscript, os.path.join(tmp, tester.runscript))
+                # If we have extra files to add, copy them
+                for binfile in bins:
                     shutil.copyfile(
-                        package_file, os.path.join(tmp, os.path.basename(package_file))
+                        os.path.join(tester_bin, binfile),
+                        os.path.join(tmp, binfile),
                     )
 
-                    # If we have extra files to add, copy them
-                    for binfile in bins:
-                        shutil.copyfile(
-                            os.path.join(tester_bin, binfile),
-                            os.path.join(tmp, binfile),
-                        )
-
-                    cmd = ["docker", "build", "-t", container_name, tmp]
-                    res = subprocess.call(cmd)
-                    if res != 0:
-                        sys.exit("Error building %s" % container_name)
+                cmd = ["docker", "build", "-t", container_name, tmp]
+                res = subprocess.call(cmd)
+                if res != 0:
+                    sys.exit("Error building %s" % container_name)
 
     def get_tester_config(self, tester):
         """Given a package and tester, return the tester config."""

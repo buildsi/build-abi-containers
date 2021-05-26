@@ -1,7 +1,8 @@
 package:
  name: mpich
  versions:
-# versions must be available from autamus
+# versions will be used when we add a build cache, for now they are 
+# discovered in the autamus base container
 #  - "3.2.1"
 #  - "3.3"
 #  - "3.3.2"
@@ -10,4 +11,4 @@ package:
  headers:
   - include
  libs:
-  - libs/libmpich.so
+  - lib/libmpich.so
