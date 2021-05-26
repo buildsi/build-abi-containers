@@ -19,7 +19,27 @@ evaluating ABI, and to run tests for ABI in the CI. The approach we take is the 
 
 ## Usage
 
-### Build and Run Tests
+The client exposes two commands - to build and run tests:
+
+```bash
+usage: build-si-containers [-h] {test,build} ...
+
+Build SI Container Tester
+
+optional arguments:
+  -h, --help    show this help message and exit
+
+actions:
+  actions for testing containers for the BUILD SI project
+
+  {test,build}  run-tests actions
+    test        run tests.
+    build       build a testing container.
+```
+
+Test will also do a build, and then run tests for the container.
+
+### Build
 
 #### 0. Install dependencies
 
@@ -31,8 +51,27 @@ $ pip install -r requirements.txt
 
 #### 1. Build a container
 
-The first thing you likely want to do is build your testing container. We will
-be doing a multi-stage build with a testing base from [quay.io/buildsi](https://quay.io/organization/buildsi), combined with a package of interest from [autamus](https://autamus.io). The container from autamus currently has multiple versions
+The first thing you likely want to do is build your testing container. 
+The build command let's you choose a root (the repository here that has a tests and
+testers folder), a tester name (we only have one now so it defaults to libabigail),
+and if we should use the spack build cache to install (not recommended currently as
+it doesn't have most of what we need)
+
+```bash
+usage: build-si-containers build [-h] [--root ROOT] [--use-cache] [--tester {libabigail,all}] packages [packages ...]
+
+positional arguments:
+  packages              packages to test
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --root ROOT, -r ROOT  The root with the tests and testers directories.
+  --use-cache           Install from build cache instead of autamus.
+  --tester {libabigail,all}, -t {libabigail,all}
+                        The tester to run tests for.
+```
+
+We will be doing a multi-stage build with a testing base from [quay.io/buildsi](https://quay.io/organization/buildsi), combined with a package of interest from [autamus](https://autamus.io). The container from autamus currently has multiple versions
 of the same package installed, as this is what Bolo was doing. But we can change this to, for
 example, install any set of packages on demand from a spack build cache. So to build the container
 for example to test "mpich" which has a yaml file in
@@ -43,7 +82,13 @@ for example to test "mpich" which has a yaml file in
 ```
 
 If we can add these steps to CI, perhaps on any change of a tester or package, then
-the containers will be ready to go to produce results.
+the containers will be ready to go to produce results. By default, we use
+container bases from autamus. But if you want to give the build cache a shot
+(maybe if we can update it to include more packages?) you can do:
+
+```bash
+./build-si-containers build --use-cache mpich
+```
 
 #### 2. Run Tests
 
@@ -53,6 +98,32 @@ Once your container is built, testing is just running it!
 $ docker run -it quay.io/buildsi/libabigail-test-mpich:latest
 ```
 
+You can also request build and tests to be run at the same time:
+
+```bash
+./build-si-containers test mpich
+```
+
+While the build command will always do a build, the test command will first
+look to see if the container already has been built, and not rebuild it if
+this is the case. To force a rebuild:
+
+
+```
+./build-si-containers test --rebuild mpich
+```
+
+By default, results are saved to the present working directory in a "results"
+folder. The structure of the folder is done so that results from different
+packages or testers will not overwrite one another. To specify a different folder,
+you can do:
+
+```bash
+mkdir -p /tmp/tests
+./build-si-containers test --outdir /tmp/tests mpich
+```
+
+To be safe, the directory must already exist.
 You'll see a bunch of commands printed to the screen for the tester.
 Running the container will generate results within the container. if you want
 to save files generated locally, you need to bind to `/results` in the container.
@@ -165,7 +236,7 @@ of these containers is to provide a base that has the testing software, onto whi
 we can install a package and run tests. This means that to add a new testing base you should:
 
 1. Create a subdirectory that matches the name of the tester, e.g [docker/libabigail](docker/libabigail)
-2. Create a Dockerfile in this folder with an ubuntu 18.04 or 20.04 base that installs the testing framework. The executables that the tester needs should be on the path. The Dockerfile should accept a `LIBRARY_VERSION` build argument that will set one or more versions to build. You don't need to worry about an `ENTRYPOINT`, as it will be set on the build of the package testing container.
+2. Create a Dockerfile in this folder with an ubuntu 18.04 or 20.04 base that installs the testing framework. The executables that the tester needs should be on the path. The Dockerfile should accept a `LIBRARY_VERSION` build argument that will set one or more versions to build. You don't need to worry about an `ENTRYPOINT`, as it will be set on the build of the package testing container. You should also install `curl` for spack.
 
 #### 5. Create Dockerfile test template
 

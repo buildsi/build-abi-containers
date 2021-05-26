@@ -3,6 +3,7 @@ FROM ubuntu:20.04
 ENV DEBIAN_FRONTEND=noninteractive
 ARG LIBRARY_VERSION=1.8.2
 RUN apt-get update && apt-get install -y build-essential \
+    curl \
     libelf-dev \
     libzip-dev \
     autoconf \

@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
 
-# run-tests will do the following:
-# 1. take one or more test names (e.g., mpich) from the command line
-#    we default to all test files found in tests/
-# 2. take one or more testers found in testers/ (default to all testers)
+# This script does the following.
+# 1. Take one or more test names (e.g., mpich) from the command line
+# 2. Take one or more testers found in testers/ (default to libabigail)
 # 3. For each test, for each tester, build a container that spack installs the
 #    software on top of the testers container.
 # 4. Install the script/library here to run the tests
-# 5. Output should be saved to a namespaced folder, <tester>/<package>
-# 6. And we will need a way to compare output...
+# 5. Output should be saved to a namespaced folder, <tester>/<package>/etc
+# 6. We will need a way to compare output.
 
-
-# TODO make a script for the tester,
-# make this into a little package?
-# how should the tests be run?
 
 import argparse
 import shutil
@@ -119,7 +114,7 @@ class TestPackage:
 
     @property
     def include(self):
-        return self.config["package"]['headers']
+        return self.config["package"]["headers"]
 
     @property
     def name(self):
@@ -132,6 +127,7 @@ class TestSetup:
         self.root = root
         self.check_root()
         self.load_testers()
+        self.docker_images()
 
     @property
     def test_dir(self):
@@ -157,20 +153,64 @@ class TestSetup:
             if not os.path.exists(path):
                 sys.exit("% does not exist in the root!" % path)
 
-    def build(self, package, testers):
-        """Create a Dockerfile and build"""
-        package_file = os.path.join(self.test_dir, "%s.yaml" % package)
-        if not os.path.exists(package_file):
-            sys.exit("Package file %s does not exist." % package_file)
+    def test(self, container, outdir):
+        """
+        Given a container, run it and bind to an output directory to test
+        """
+        res = run_command(
+            ["docker", "run", "-it", "-v", "%s:/results" % outdir, container],
+            to_stdout=True,
+        )
+
+    def get_containers(self, package, testers):
+        """
+        Given a tester and package, generate the list of expected containers.
+        """
+        containers = []
+
+        # For each testing container, and each version, build
+        for tester in self.testers:
+            tester = Tester(self.get_tester_config(tester))
+            package = TestPackage(self.get_package_config(package))
+            containers.append(
+                "quay.io/buildsi/%s-test-%s:latest" % (tester.name, package.name)
+            )
+        return containers
+
+    def docker_images(self):
+        """
+        Load docker images into the client to determine which already exist.
+        """
+        images = run_command(["docker", "images"])
+        self.containers = []
+        for image in images.split("\n"):
+            if not image:
+                continue
+            image, rest = image.split(" ", 1)
+            tag = rest.strip().split(" ")[0]
+            self.containers.append("%s:%s" % (image, tag))
+
+        self.containers = set(self.containers)
+
+    def build(self, package, testers, use_cache=False, fail_fast=True, skips=None):
+        """
+        Create a Dockerfile and build
+        """
+        # Containers to skip building
+        skips = skips or []
 
         # Create the package to test
-        package = TestPackage(package_file)
+        package_file = os.path.join(self.test_dir, "%s.yaml" % package)
+        package = TestPackage(self.get_package_config(package))
+
+        # Return a list of containers build to test later
+        containers = []
 
         # For each testing container, and each version, build
         for tester in self.testers:
 
             # Get the tester build template
-            template = self.get_tester_template(tester)
+            template = self.get_tester_template(tester, use_cache)
             tester = Tester(self.get_tester_config(tester))
 
             # Right now one container has all versions
@@ -182,9 +222,19 @@ class TestSetup:
                     bins.append(filename)
 
             # Render the template and runtests.py file
-            runscript = self.get_tester_runscript(tester).render(package=package, tester=tester)
+            runscript = self.get_tester_runscript(tester).render(
+                package=package, tester=tester
+            )
             out = template.render(package=package, tester=tester, bins=bins)
-            container_name = "quay.io/buildsi/libabigail-test-%s:latest" % package.name
+            container_name = "quay.io/buildsi/%s-test-%s:latest" % (
+                tester.name,
+                package.name,
+            )
+
+            # Skip building the container if requested to skip
+            if container_name in skips:
+                containers.append(container_name)
+                continue
 
             with tempfile.TemporaryDirectory() as tmp:
                 write_file(out, os.path.join(tmp, "Dockerfile"))
@@ -202,29 +252,52 @@ class TestSetup:
 
                 cmd = ["docker", "build", "-t", container_name, tmp]
                 res = subprocess.call(cmd)
-                if res != 0:
+                if res == 0:
+                    containers.append(container_name)
+                elif res != 0 and fail_fast:
                     sys.exit("Error building %s" % container_name)
+                else:
+                    print("Issue building %s, but fail fast not set.")
+                    continue
+        return containers
 
     def get_tester_config(self, tester):
-        """Given a package and tester, return the tester config."""
+        """
+        Given a package and tester, return the tester config.
+        """
         config_file = os.path.join(self.testers_dir, tester, "tester.yaml")
         if not os.path.exists(config_file):
             sys.exit("%s does not exist!" % config_file)
         return config_file
 
+    def get_package_config(self, package):
+        """
+        Given a package and tester, return the tester config.
+        """
+        package_file = os.path.join(self.test_dir, "%s.yaml" % package)
+        if not os.path.exists(package_file):
+            sys.exit("%s does not exist!" % package_file)
+        return package_file
+
     def get_tester_runscript(self, tester):
-        """Get the runscript for the tester"""
+        """
+        Get the runscript for the tester
+        """
         template = os.path.join(self.templates_dir, tester.name, tester.runscript)
         if not os.path.exists(template):
             sys.exit("Tester runscript %s does not exist!" % template)
         template = template.replace(self.templates_dir, "").strip("/")
         return env.get_template(template)
 
-    def get_tester_template(self, tester):
-        """Given a package and tester, return the container template."""
+    def get_tester_template(self, tester, use_cache=False):
+        """
+        Given a package and tester, return the container template.
+        """
         dockerfile = os.path.join(self.templates_dir, tester, "Dockerfile")
-        if not os.path.exists(dockerfile):
+        if not os.path.exists(dockerfile) and not use_cache:
             dockerfile = os.path.join(self.templates_dir, "Dockerfile.default")
+        elif not os.path.exists(dockerfile) and use_cache:
+            dockerfile = os.path.join(self.templates_dir, "Dockerfile.buildcache")
         dockerfile = dockerfile.replace(self.templates_dir, "").strip("/")
         return env.get_template(dockerfile)
 
@@ -240,6 +313,19 @@ def write_file(content, filename):
         fd.write(content)
 
 
+def run_command(cmd, to_stdout=False):
+    stdout = subprocess.PIPE
+    if to_stdout:
+        stdout = None
+    p = subprocess.Popen(cmd, stdout=stdout, stderr=subprocess.STDOUT)
+    out = p.communicate()[0]
+    if out:
+        out = out.decode("utf-8")
+    if p.returncode != 0:
+        sys.exit("Error finding install packages.")
+    return out
+
+
 def get_parser():
     parser = argparse.ArgumentParser(description="Build SI Container Tester")
 
@@ -253,6 +339,20 @@ def get_parser():
 
     # Run a complete test, which includes building the test container
     test = subparsers.add_parser("test", help="run tests.")
+    test.add_argument(
+        "--outdir",
+        "-o",
+        dest="outdir",
+        help="Write test results to this directory (defaults to results in $PWD)",
+        default=os.path.join(os.getcwd(), "results"),
+    )
+    test.add_argument(
+        "--rebuild",
+        dest="rebuild",
+        help="Force rebuild of the container if it does not exist.",
+        default=False,
+        action="store_true",
+    )
 
     # Build a testing container
     build = subparsers.add_parser("build", help="build a testing container.")
@@ -265,6 +365,20 @@ def get_parser():
             dest="root",
             help="The root with the tests and testers directories.",
             default=os.getcwd(),
+        )
+        command.add_argument(
+            "--use-cache",
+            dest="use_cache",
+            help="Install from build cache instead of autamus.",
+            default=False,
+            action="store_true",
+        )
+        command.add_argument(
+            "--fail-fast",
+            dest="fail_fast",
+            help="If a container build fails, exit.",
+            default=True,
+            action="store_false",
         )
         command.add_argument(
             "--tester",
@@ -296,7 +410,24 @@ def main():
 
     if args.command == "build":
         for package in args.packages:
-            setup.build(package, args.tester)
+            setup.build(package, args.tester, args.use_cache, args.fail_fast)
+
+    elif args.command == "test":
+        for package in args.packages:
+
+            # By default, don't skip any builds, unless a rebuild is not wanted
+            skips = []
+            if not args.rebuild:
+
+                # Skip containers that already exist
+                for container in setup.get_containers(package, args.tester):
+                    if container in setup.containers:
+                        skips.append(container)
+            containers = setup.build(
+                package, args.tester, args.use_cache, args.fail_fast, skips=skips
+            )
+            for container in containers:
+                setup.test(container, args.outdir)
     else:
         help()
 
