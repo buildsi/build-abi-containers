@@ -29,12 +29,10 @@ jobs:
             printf "Looking for changes in tester ${{ matrix.tester }}\n"
             cd docker/${{ matrix.tester }}
             for dockerfile in $(git diff --name-only origin/main HEAD .); do
-
-                # If the dockerfile ends in test, skip for now
-                if [[ "$dockerfile" == "test" ]]; then
+                if [ ! -f "$dockerfile" ]; then
+                    printf "Dockerfile ${dockerfile} does not exist, skipping.\n"
                     continue
                 fi
-
                 versions="${{ matrix.tester }}_versions"
                 filename=$(basename $dockerfile)
                 for version in ${!versions}; do                  

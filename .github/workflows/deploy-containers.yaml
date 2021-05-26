@@ -36,6 +36,12 @@ jobs:
             commit=$(git rev-parse HEAD)
             printf "Looking for changed containers with commit $commit\n"
             for dockerfile in $(git diff-tree --no-commit-id --name-only -r HEAD .); do
+
+                if [ ! -f "$dockerfile" ]; then
+                    printf "Dockerfile ${dockerfile} does not exist, skipping.\n"
+                    continue
+                fi
+
                 printf "Found changed Dockerfile ${dockerfile}\n"
                 newbuilds=yes
                 filename=$(basename $dockerfile)
