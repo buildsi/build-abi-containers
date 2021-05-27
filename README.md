@@ -104,6 +104,31 @@ You can also request build and tests to be run at the same time:
 ./build-si-containers test mpich
 ```
 
+The test command also supports a few other parameters:
+
+```bash
+usage: build-si-containers test [-h] [--outdir OUTDIR] [--rebuild]
+                                [--root ROOT] [--use-cache] [--fail-fast]
+                                [--tester {libabigail,all}]
+                                packages [packages ...]
+
+positional arguments:
+  packages              packages to test
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --outdir OUTDIR, -o OUTDIR
+                        Write test results to this directory (defaults to
+                        results in $PWD)
+  --rebuild             Force rebuild of the container if it does not exist.
+  --root ROOT, -r ROOT  The root with the tests and testers directories.
+  --use-cache           Install from build cache instead of autamus.
+  --fail-fast           If a container build fails, exit.
+  --tester {libabigail,all}, -t {libabigail,all}
+                        The tester to run tests for.
+```
+
+
 While the build command will always do a build, the test command will first
 look to see if the container already has been built, and not rebuild it if
 this is the case. To force a rebuild:
