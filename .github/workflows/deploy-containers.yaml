@@ -20,6 +20,7 @@ jobs:
         run: |
           cd testers
           testers=$(python -c 'import os, json; print(json.dumps(os.listdir(".")))')  
+          echo "Found testers $testers"
           echo '::set-output name=matrix::$testers'
 
   build-containers:
@@ -28,8 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        container: ${{ fromJson(needs.list-testers.outputs.testers) }}
-    name: Build ${{ matrix.container }}
+        tester: ${{ fromJson(needs.list-testers.outputs.testers) }}
+    name: Build ${{ matrix.tester }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2

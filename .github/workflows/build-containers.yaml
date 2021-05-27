@@ -19,6 +19,7 @@ jobs:
         run: |
           cd testers
           testers=$(python -c 'import os, json; print(json.dumps(os.listdir(".")))')  
+          echo "Found testers $testers"
           echo '::set-output name=matrix::$testers'
 
   build-containers:
@@ -34,9 +35,6 @@ jobs:
         uses: actions/checkout@v2        
       - name: Test Building Changes
         env:
-          # Space separated list of versions to build for a named tester
-          libabigail_versions: "1.8.2"
-
           # registry organization
           registry: quay.io/buildsi
         run: |
