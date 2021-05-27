@@ -159,7 +159,7 @@ class TestSetup:
         Given a container, run it and bind to an output directory to test
         """
         res = run_command(
-            ["docker", "run", "-it", "-v", "%s:/results" % outdir, container],
+            ["docker", "run", "-t", "-v", "%s:/results" % outdir, container],
             to_stdout=True,
         )
 
@@ -332,9 +332,9 @@ def run_command(cmd, to_stdout=False):
     out = p.communicate()[0]
     if out:
         out = out.decode("utf-8")
-    print(out)
     if p.returncode != 0:
-        sys.exit("Error finding install packages.")
+        print(out)
+        sys.exit("Error running %s." % " ".join(cmd))
     return out
 
 
