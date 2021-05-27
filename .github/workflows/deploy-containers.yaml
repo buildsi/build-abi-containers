@@ -11,7 +11,7 @@ jobs:
     name: Check for Changes
     runs-on: ubuntu-latest
     outputs:
-      testers: ${{ steps.list.outputs.matrix }}
+      testers: ${{ steps.list.outputs.testers }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2        
@@ -21,7 +21,7 @@ jobs:
           cd testers
           testers=$(python -c 'import os, json; print(json.dumps(os.listdir(".")))')  
           echo "Found testers $testers"
-          echo '::set-output name=matrix::$testers'
+          echo '::set-output name=testers::$testers'
 
   build-containers:
     needs:
