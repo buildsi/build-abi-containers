@@ -201,8 +201,8 @@ class TestSetup:
         skips = skips or []
 
         # Create the package to test
-        package_file = os.path.join(self.test_dir, "%s.yaml" % package)
-        package = TestPackage(self.get_package_config(package))
+        package_file = self.get_package_config(package)
+        package = TestPackage(package_file)
 
         # Return a list of containers build to test later
         containers = []
@@ -278,6 +278,7 @@ class TestSetup:
         # If we are given a package file directly, honor it
         if os.path.exists(package):
             return package
+
         # Look for exact file in the tests directory
         package_file = os.path.join(self.test_dir, package)
         if os.path.exists(package_file):
