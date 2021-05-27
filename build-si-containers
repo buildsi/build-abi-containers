@@ -274,6 +274,9 @@ class TestSetup:
         """
         Given a package and tester, return the tester config.
         """
+        # If we are given a package file directly, honor it
+        if os.path.exists(package):
+            return package
         package_file = os.path.join(self.test_dir, "%s.yaml" % package)
         if not os.path.exists(package_file):
             sys.exit("%s does not exist!" % package_file)
