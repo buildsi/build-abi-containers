@@ -38,11 +38,12 @@ jobs:
         run: |
             git fetch
             printf "Looking for changes in test ${{ matrix.test }}\n"
+            pip install -r requirements.txt
             cd tests
             for testyaml in $(git diff --name-only origin/main HEAD .); do
                 testyaml=$(basename ${testyaml})
                 if [ "$testyaml" == "${{ matrix.test }}" ]; then                
                     printf "Found changed test file ${testyaml}\n"
-                    python ../build-abi-container test ${testyaml}
+                    python ../build-si-containers test ${testyaml}
                 fi
             done
