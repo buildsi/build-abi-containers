@@ -39,7 +39,8 @@ jobs:
             git fetch
             printf "Looking for changes in test ${{ matrix.test }}\n"
             cd tests
-            for testyaml in $(git diff --name-only origin/main HEAD .); do
+            for testyaml in $(c); do
+                testyaml=$(basename $testyaml)
                 if [ "$testyaml" == "${{ matrix.test }}" ]; then                
                     printf "Found changed test file ${testyaml}\n"
                     python ../build-abi-container test ${testyaml}

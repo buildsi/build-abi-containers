@@ -8,7 +8,7 @@ on:
 
 jobs:
   list-testers:
-    name: Check for Changes
+    name: List Testers
     runs-on: ubuntu-latest
     outputs:
       testers: ${{ steps.list.outputs.testers }}
