@@ -39,7 +39,7 @@ jobs:
             git fetch
             printf "Looking for changes in test ${{ matrix.test }}\n"
             pip install -r requirements.txt
-            root=${PWD}
+            root="${PWD}"
             cd tests
             for testyaml in $(git diff --name-only origin/main HEAD .); do
                 relpath=$(basename ${testyaml})
@@ -47,7 +47,7 @@ jobs:
                     printf "${relpath} does not exist.\n"
                     continue
                 fi
-                relpath=$(basename ${testyaml                if [ "$relpath" == "${{ matrix.test }}" ]; then                
+                if [ "$relpath" == "${{ matrix.test }}" ]; then                
                     printf "Found changed test file ${testyaml}\n"
                     python ../build-si-containers test --root "${root}" "${relpath}"
                 fi
