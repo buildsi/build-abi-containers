@@ -52,3 +52,10 @@ jobs:
                     python ../build-si-containers test --root "${root}" "${relpath}"
                 fi
             done
+            cd ../
+            # TODO: do we want to push the containers anywhere?
+            
+      - uses: actions/upload-artifact@v2
+        with:
+          name: "results-{{ matrix.test }}"
+          path: results
