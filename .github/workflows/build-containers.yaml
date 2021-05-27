@@ -6,22 +6,35 @@ on:
       - main
  
 jobs:
-  check:
+  list-testers:
     name: Check for Changes
     runs-on: ubuntu-latest
+    outputs:
+      testers: ${{ steps.list.outputs.testers }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2        
+      - name: Save testers list
+        id: list
+        run: |
+          cd testers
+          testers=$(python -c 'import os, json; print(json.dumps(os.listdir(".")))')  
+          echo "Found testers $testers"
+          echo "::set-output name=testers::${testers}"
+  
+  build-containers:
+    needs:
+      - list-testers
+    runs-on: ubuntu-latest
     strategy:
-      # Add new testers here. Each tester needs a subfolder in docker, and a
-      # Dockerfile that accepts a LIBRARY_VERSION variable
       matrix:
-        tester: ["libabigail"]
+        tester: ${{ fromJson(needs.list-testers.outputs.testers) }}
+    name: Build ${{ matrix.tester }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2        
       - name: Test Building Changes
         env:
-          # Space separated list of versions to build for a named tester
-          libabigail_versions: "1.8.2"
-
           # registry organization
           registry: quay.io/buildsi
         run: |
@@ -33,9 +46,15 @@ jobs:
                     printf "Dockerfile ${dockerfile} does not exist, skipping.\n"
                     continue
                 fi
-                versions="${{ matrix.tester }}_versions"
+                # A version file must exist
+                tester_dir=$(dirname $dockerfile)
+                if [ ! -f "$tester_dir/versions" ]; then
+                    printf "versions text file missing for $dockerfile."
+                    exit 1
+                fi
+                versions=$(cat $tester_dir/versions)
                 filename=$(basename $dockerfile)
-                for version in ${!versions}; do                  
+                for version in ${versions}; do        
                     container=${{ env.registry }}/${{ matrix.tester }}:${version}
                     printf "Building ${dockerfile} with version ${version} to container ${container}\n"  
                     docker build -f ${filename} --build-arg LIBRARY_VERSION=${version} -t ${container} .
