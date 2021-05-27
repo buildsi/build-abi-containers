@@ -3,10 +3,10 @@ package:
  versions:
 # versions will be used when we add a build cache, for now they are 
 # discovered in the autamus base container
+  - "3.4.1"
 #  - "3.2.1"
 #  - "3.3"
 #  - "3.3.2"
-  - "3.4.1"
 #  - "2-1.5"
  headers:
   - include
