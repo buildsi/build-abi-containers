@@ -58,4 +58,4 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: "results-{{ matrix.test }}"
-          path: results
+          path: tests/results
