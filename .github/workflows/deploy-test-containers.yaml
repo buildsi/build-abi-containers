@@ -1,4 +1,4 @@
-name: "Deploy test contianers"
+name: "Deploy test containers"
 
 on:
   push:
@@ -45,6 +45,7 @@ jobs:
             commit=$(git rev-parse HEAD)
             printf "Looking for changed test containers with commit $commit\n"
             for testyaml in $(git diff-tree --no-commit-id --name-only -r HEAD .); do
+                printf "Inspecting ${testyaml}\n"
                 relpath=$(basename ${testyaml})
                 if [ ! -f "${relpath}" ]; then                
                     printf "${relpath} does not exist.\n"

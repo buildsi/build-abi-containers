@@ -1,21 +1,71 @@
 # Build ABI Containers
 
-**under development**
-
 The goal of this repository is to provide container environments for
 evaluating ABI, and to run tests for ABI in the CI. The approach we take is the following:
 
  - provide base containers with tools to test abi.
  - For some number of packages, define libraries and binaries within to build and test.
- - Build a testing container on top of a base container, with an [autamus](https://autamus.io) package added via multistage build. We might change this to use a spack build cache instead, but right now I'm testing with autamus containers.
+ - Build a testing container on top of a base container, with an [autamus](https://autamus.io) package added via multi-stage build. We might change this to use a spack build cache instead, but right now I'm testing with autamus containers.
  - Run the entrypoint of the container with a local volume to run tests and generate output.
+
+## Table of Contents
+
+ - [Quick Start](#quick-start)
+ - [Overview of Steps](#overview-of-steps)
+ - [Questions for Discussion](#questions-for-discussion)
+ - [Organization](#organization)
+ - [Usage](#usage)
+   - [Build](#build)
+   - [Test](#test)
+   - [Add a Tester](#add-a-tester)
+   - [Add a Test](#add-a-test)
+   - [Bolos Notes](#bolos-notes)
+
+## Quick Start
+
+```bash
+# Install dependencies
+$ pip install -r requirements.txt
+
+# Build a testing container for a tester and a package (mpich.yaml in tests)
+./build-si-containers build mpich
+
+# The default tester is libabigail (the command above is equivalent to):
+./build-si-containers build --tester libabigail mpich
+
+# Build and run libabigail's tests
+./build-si-containers test mpich
+
+# Deploy the libabgail + mpich tester container
+./build-si-containers deploy mpich
+```
+
+These commands will be explained in detail in these docs.
+
+
+## Overview of Steps
+
+1. We start with base containers that have "testers" such as libabigail. Their recipe files are included in [docker](docker) and the GitHub workflows [build-containers.yaml](.github/workflows/build-containers.yaml) and [deploy-containers.yaml](.github/workflows/deploy-containers.yaml). When any of these files change, the bases are built in a pull request (PR), and when the PR is merged the containers are deployed. For example, [here](https://quay.io/repository/buildsi/libabigail?tab=tags) is the libabigail testing base on Quay.io. A tester like libabigail has it's own entrypoint and runscript where we can express how to write tests. For example, libabigail is going to run abidw, abidiff, etc.
+2. We define packages to test in [tests](tests) as yaml files. The yaml files include things like header files, versions, and libraries, and these variables are handed to the testing template. This means the resulting container of the libabigail base + the package (e.g., mpich) will have a custom runscript to run the libabigail commands on the various libaries, etc.
+3. The results are saved in the container at /results, in a tree that will ensure that different tester and package bases have a unique namespace. The tests are run in a GitHub workflow and currently saved as artifacts. (E.g., see [this run](https://github.com/spack/build-abi-containers/actions/runs/882797815)).
+
+It's recommended to read the [usage section](#usage) to get more detail on the above.
+
+## Questions for Discussion / Remaining to do
+
+1. Currently, we are using custom autamus builds (e.g., a container with multiple mpich installed) as the test base. 
+Ideally we can generate these quickly on the fly when we can install from a build cache.
+2. abicompat cannot be run until we have examples included, this is still being added.
+3. We need to derive a means to compare results across different testers. E.g., libabigail vs. Smeagle (when Smeagle has tests).
+4. Where should we put these results? I was thinking of running a workflow nightly to get artifacts from the GitHub API and put them where we want them. Where do we want them?
 
 ## Organization
 
  - [docker](docker): includes `Dockerfile`s, one per testing base, that will be deployed to [quay.io/buildsi](https://quay.io/organization/buildsi).
- - [tests](tests): includes yaml config files that are matched to a spack package to test (or more generally an autamus container). The configs are validate when loaded.
- - [testers](testers): is an folder of tester subdirectories, which should be named for the tester (e.g., libabigail). No other files should be put in this folder root.
+ - [tests](tests): includes yaml config files that are matched to a spack package to test (or more generally an autamus container). The configs are validated when loaded.
+ - [testers](testers): is a folder of tester subdirectories, which should be named for the tester (e.g., libabigail). No other files should be put in this folder root.
  - [templates](templates): includes both container build templates, and tester runtime templates. The container build templates.
+
 
 ## Usage
 
@@ -90,7 +140,7 @@ container bases from autamus. But if you want to give the build cache a shot
 ./build-si-containers build --use-cache mpich
 ```
 
-#### 2. Run Tests
+### Test
 
 Once your container is built, testing is just running it!
 
@@ -132,7 +182,6 @@ optional arguments:
 While the build command will always do a build, the test command will first
 look to see if the container already has been built, and not rebuild it if
 this is the case. To force a rebuild:
-
 
 ```
 ./build-si-containers test --rebuild mpich
@@ -183,6 +232,29 @@ results/
 We will want to run this in some CI, and upload results to save somewhere (this is not
 done yet).
 
+### Deploy
+
+After a container is built, you can use deploy to push to Quay.io.
+
+```bash
+./build-si-containers deploy -h
+usage: build-si-containers deploy [-h] [--root ROOT] [--tester {libabigail,all}] packages [packages ...]
+
+positional arguments:
+  packages              packages to test
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --root ROOT, -r ROOT  The root with the tests and testers directories.
+  --tester {libabigail,all}, -t {libabigail,all}
+                        The tester to run tests for.
+```
+
+```bash
+./build-si-containers deploy mpich
+```
+
+
 ### Add a Tester
 
 A tester is a base for running some kind of test on a binary. When you add a tester
@@ -216,7 +288,7 @@ testers/
     └── tester.yaml
 ```
 
-In the above, we see that a tester also needs a tester.yaml file. THis file
+In the above, we see that a tester also needs a tester.yaml file. This file
 defines metadata like the name of the tester (matching the folder), the 
 entrypoint and runscript for the container (written to `/build-si/`) along
 with the active version. Since we typically want to consistently test using one
@@ -326,7 +398,7 @@ package:
 Currently, we are developing with matching autamus containers (e.g., asking
 to test mpich will use [this container](https://github.com/orgs/autamus/packages/container/package/buildsi-mpich)) 
 but once we have a build cache to quickly install from, it should be possible to write any number of packages in
-a file. For now, wach of these packages (and the versions requested) will need to be available
+a file. For now, each of these packages (and the versions requested) will need to be available
 on the autamus registry, which means that:
 
  - we need to be able to build with debug symbols globally

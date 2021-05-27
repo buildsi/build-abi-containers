@@ -7,7 +7,7 @@ ENV PATH=/opt/spack/bin:$PATH
 RUN apt-get install -y curl && \
     spack mirror add E4S https://cache.e4s.io && \
     spack buildcache keys -it && \
-    {% for version in package.versions %}spack install --cache-only {{ package.name }}@{{ version }} || echo "There was an issue installing {{ package.name }}@{{ version }}" && \{% endfor %}
+    {% for version in package.versions %}spack install --source --cache-only {{ package.name }}@{{ version }} || echo "There was an issue installing {{ package.name }}@{{ version }}" && \{% endfor %}
     printf "Finished installation attempts\n"
 
 WORKDIR /build-si/
