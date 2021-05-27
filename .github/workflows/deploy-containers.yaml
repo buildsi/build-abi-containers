@@ -19,7 +19,7 @@ jobs:
         id: list
         run: |
           cd testers
-          testers=$(python -c 'import os, json; print json.dumps(os.listdir("."))')  
+          testers=$(python -c 'import os, json; print(json.dumps(os.listdir(".")))')  
           echo '::set-output name=matrix::$testers'
 
   build-containers:
