@@ -7,14 +7,14 @@ evaluating ABI, and to run tests for ABI in the CI. The approach we take is the 
 
  - provide base containers with tools to test abi.
  - For some number of packages, define libraries and binaries within to build and test.
- - Build a testing container on top of a base container, with an [autamus](https://autamus.io) package added via multistage build. We might change this to use a spack build cache instead, but right now I'm testing with autamus containers.
+ - Build a testing container on top of a base container, with an [autamus](https://autamus.io) package added via multi-stage build. We might change this to use a spack build cache instead, but right now I'm testing with autamus containers.
  - Run the entrypoint of the container with a local volume to run tests and generate output.
 
 ## Organization
 
  - [docker](docker): includes `Dockerfile`s, one per testing base, that will be deployed to [quay.io/buildsi](https://quay.io/organization/buildsi).
- - [tests](tests): includes yaml config files that are matched to a spack package to test (or more generally an autamus container). The configs are validate when loaded.
- - [testers](testers): is an folder of tester subdirectories, which should be named for the tester (e.g., libabigail). No other files should be put in this folder root.
+ - [tests](tests): includes yaml config files that are matched to a spack package to test (or more generally an autamus container). The configs are validated when loaded.
+ - [testers](testers): is a folder of tester subdirectories, which should be named for the tester (e.g., libabigail). No other files should be put in this folder root.
  - [templates](templates): includes both container build templates, and tester runtime templates. The container build templates.
 
 ## Usage
@@ -53,7 +53,7 @@ $ pip install -r requirements.txt
 
 The first thing you likely want to do is build your testing container. 
 The build command let's you choose a root (the repository here that has a tests and
-testers folder), a tester name (we only have one now so it defaults to libabigail),
+testers folder), a tester name (we only have one now, so it defaults to libabigail),
 and if we should use the spack build cache to install (not recommended currently as
 it doesn't have most of what we need)
 
@@ -75,7 +75,7 @@ We will be doing a multi-stage build with a testing base from [quay.io/buildsi](
 of the same package installed, as this is what Bolo was doing. But we can change this to, for
 example, install any set of packages on demand from a spack build cache. So to build the container
 for example to test "mpich" which has a yaml file in
-[tests](tests) you can do:
+[tests](tests), you can do:
 
 ```bash
 ./build-si-containers build mpich
@@ -114,7 +114,7 @@ this is the case. To force a rebuild:
 ```
 
 By default, results are saved to the present working directory in a "results"
-folder. The structure of the folder is done so that results from different
+folder. The structure of the folder is done, so that results from different
 packages or testers will not overwrite one another. To specify a different folder,
 you can do:
 
@@ -160,7 +160,7 @@ done yet).
 
 ### Add a Tester
 
-A tester is a base for running some kind of test on a binary. When you add a tester
+A tester is a base for running some kind of test on a binary. When you add a tester,
 you need to:
 
  1. Give the tester a name (e.g., libabigail) to use across files.
@@ -191,13 +191,13 @@ testers/
     └── tester.yaml
 ```
 
-In the above, we see that a tester also needs a tester.yaml file. THis file
-defines metadata like the name of the tester (matching the folder), the 
-entrypoint and runscript for the container (written to `/build-si/`) along
+In the above, we see that a tester also needs a tester.yaml file. This file
+defines metadata like the tester's name (matching the folder), an 
+entrypoint, and runscript for the container (written to `/build-si/`) along
 with the active version. Since we typically want to consistently test using one
 version, for now it is designed in this way. So you should write
 a config file named `tester.yaml` in the [testers](testers) directory in a subfolder
-named for the tester. For example, libabigail looks like:
+named for the tester. For example, libabigail looks like this:
 
 ```yaml
 tester:
@@ -208,7 +208,7 @@ tester:
 ```
 
 Notice the bin folder? Any files that you add in bin will be added to /usr/local/bin, the idea being
-you can write extra scripts for the tester to use. For now we are just supporting one version of a tester.
+you can write extra scripts for the tester to use. For now, we are just supporting one version of a tester.
 
 #### 3. Create the tester runscript
 
@@ -237,8 +237,8 @@ when we know what we want.
 The Dockerfile base templates are in [docker](docker), in subfolders named for
 the testers. These bases will be built automatically on any changes to the files,
 and deployed to [quay.io/buildsi](https://quay.io/organization/buildsi). The purpose
-of these containers is to provide a base that has the testing software, onto which
-we can install a package and run tests. This means that to add a new testing base you should:
+of these containers is to provide a base with the testing software, onto which
+we can install a package and run tests. This means that to add a new testing base, you should:
 
 1. Create a subdirectory that matches the name of the tester, e.g [docker/libabigail](docker/libabigail)
 2. Create a Dockerfile in this folder with an ubuntu 18.04 or 20.04 base that installs the testing framework. The executables that the tester needs should be on the path. The Dockerfile should accept a `LIBRARY_VERSION` build argument that will set one or more versions to build. You don't need to worry about an `ENTRYPOINT`, as it will be set on the build of the package testing container. You should also install `curl` for spack.
@@ -278,7 +278,7 @@ Adding a test comes down to:
 1. Adding a yaml file in the [tests](tests) folder named according to the package (or group) to test.
 2. If build caches are not available, ensuring an autamus container is built in [buildsi](https://github.com/autamus/registry/tree/main/containers/buildsi/) namespace.
 
-In the [tests](tests) folder you will find different families of packages to test.
+In the [tests](tests) folder, you will find different families of packages to test.
 For example, the `mpich.yaml` file will eventually build different containers to
 test each tester (e.g., libabigail) against for some number of versions and
 libraries. Here is what that looks like:
@@ -301,7 +301,7 @@ package:
 Currently, we are developing with matching autamus containers (e.g., asking
 to test mpich will use [this container](https://github.com/orgs/autamus/packages/container/package/buildsi-mpich)) 
 but once we have a build cache to quickly install from, it should be possible to write any number of packages in
-a file. For now, wach of these packages (and the versions requested) will need to be available
+a file. For now, each of these packages (and the versions requested) will need to be available
 on the autamus registry, which means that:
 
  - we need to be able to build with debug symbols globally
@@ -346,11 +346,11 @@ Best to rename the results dir, and then create a new one.  Then results can be 
 
 > We will refactor this so that libabigail is a runner that parses the mpich.yaml (or similar) config file, and then generates templates to run some set of commands, saving output to a structured/organized location.
 
-This container has many layers in it.. this aids development quite a bit, but makes you download a lot of layers.  It's not all that
-bad, it just seems that way.  The advantage for now is when I change or add something, you already have most of the layers and the delta
+This container has many layers in it. This aids development quite a bit, but makes you download a lot of layers.  It's not all that
+bad, it just seems that way.  The advantage, for now, is when I change or add something, you already have most of the layers, and the delta
 is tiny.    This is literally the first pass of the original with the newer libabgail added, nothing more!
 
-> We will use autamus bases instead that can provide the already built software for a specific version, and then add another layer for some testing setup.
+> We will use autamus bases instead to provide the already built software for a specific version, and then add another layer for some testing setup.
 
 ```bash
 $ docker pull bigtrak/si_mpich:1.1
@@ -380,7 +380,7 @@ I would suggest getting in the container, pulling smeagle from its
 git repository, building it and running it, analyzing the mpich
 versions and seeing how it differs from libabigail.
 
-> This is a great idea! We will eventually do this, when Smeagle is actually useful.
+> This is a great idea! We will eventually do this when Smeagle is actually useful.
 
 You can add whatever libraries you need with 'yum install'; you most likely want to install the "-devel" variant of the libraries to be able to compile against them. Same with editor of choice, etc.
 
