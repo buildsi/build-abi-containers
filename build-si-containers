@@ -278,6 +278,12 @@ class TestSetup:
         # If we are given a package file directly, honor it
         if os.path.exists(package):
             return package
+        # Look for exact file in the tests directory
+        package_file = os.path.join(self.test_dir, package)
+        if os.path.exists(package_file):
+            return package_file
+
+        # Last resort - the name of the yaml file without extension
         package_file = os.path.join(self.test_dir, "%s.yaml" % package)
         if not os.path.exists(package_file):
             sys.exit("%s does not exist!" % package_file)
