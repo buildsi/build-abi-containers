@@ -8,7 +8,7 @@ on:
 
 jobs:
   list-testers:
-    name: Check for Changes
+    name: List Testers
     runs-on: ubuntu-latest
     outputs:
       testers: ${{ steps.list.outputs.testers }}
@@ -21,7 +21,7 @@ jobs:
           cd testers
           testers=$(python -c 'import os, json; print(json.dumps(os.listdir(".")))')  
           echo "Found testers $testers"
-          echo '::set-output name=testers::$testers'
+          echo "::set-output name=testers::${testers}"
 
   build-containers:
     needs:

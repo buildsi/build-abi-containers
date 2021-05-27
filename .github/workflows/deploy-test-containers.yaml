@@ -1,0 +1,59 @@
+name: "Deploy test contianers"
+
+on:
+  push:
+    branches:
+      - main
+ 
+
+jobs:
+  list-tests:
+    name: List Tests
+    runs-on: ubuntu-latest
+    outputs:
+      tests: ${{ steps.list.outputs.tests }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2        
+      - name: Save tests list
+        id: list
+        run: |
+          cd tests
+          tests=$(python -c 'import os, json; print(json.dumps(os.listdir(".")))')  
+          echo "Found tests $tests"
+          echo "::set-output name=tests::${tests}"
+  
+  build-test-containers:
+    needs:
+      - list-tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test: ${{ fromJson(needs.list-tests.outputs.tests) }}
+    name: Build ${{ matrix.test }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2        
+      - name: Build Test Containers
+        run: |
+            echo ${{ secrets.DOCKER_PASSWORD }} | docker login quay.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+            git fetch
+            printf "Looking for changes in test ${{ matrix.test }}\n"
+            pip install -r requirements.txt
+            root="${PWD}"
+            cd tests
+            commit=$(git rev-parse HEAD)
+            printf "Looking for changed test containers with commit $commit\n"
+            for testyaml in $(git diff-tree --no-commit-id --name-only -r HEAD .); do
+                relpath=$(basename ${testyaml})
+                if [ ! -f "${relpath}" ]; then                
+                    printf "${relpath} does not exist.\n"
+                    continue
+                fi
+                if [ "$relpath" == "${{ matrix.test }}" ]; then                
+                    printf "Found changed test file ${testyaml}\n"
+                    python ../build-si-containers build --root "${root}" "${relpath}"
+                    python ../build-si-containers deploy --root "${root}" "${relpath}"
+                fi
+            done
+            cd ../

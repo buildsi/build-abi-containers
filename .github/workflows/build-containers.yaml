@@ -7,7 +7,7 @@ on:
  
 jobs:
   list-testers:
-    name: Check for Changes
+    name: List Testers
     runs-on: ubuntu-latest
     outputs:
       testers: ${{ steps.list.outputs.testers }}
@@ -22,7 +22,7 @@ jobs:
           echo "Found testers $testers"
           echo "::set-output name=testers::${testers}"
   
-  build-containers:
+  build-containers:    
     needs:
       - list-testers
     runs-on: ubuntu-latest
