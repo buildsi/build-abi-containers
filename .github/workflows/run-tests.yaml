@@ -42,12 +42,12 @@ jobs:
             root=${PWD}
             cd tests
             for testyaml in $(git diff --name-only origin/main HEAD .); do
+                relpath=$(basename ${testyaml})
                 if [ ! -f "${relpath}" ]; then                
                     printf "${relpath} does not exist.\n"
                     continue
                 fi
-                relpath=$(basename ${testyaml})
-                if [ "$relpath" == "${{ matrix.test }}" ]; then                
+                relpath=$(basename ${testyaml                if [ "$relpath" == "${{ matrix.test }}" ]; then                
                     printf "Found changed test file ${testyaml}\n"
                     python ../build-si-containers test --root "${root}" "${relpath}"
                 fi
