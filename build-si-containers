@@ -163,6 +163,12 @@ class TestSetup:
             to_stdout=True,
         )
 
+    def deploy(self, container):
+        """
+        Given a container, deploy by pushing it.
+        """
+        res = run_command(["docker", "push", container], to_stdout=True)
+
     def get_containers(self, package, testers):
         """
         Given a tester and package, generate the list of expected containers.
@@ -349,6 +355,9 @@ def get_parser():
         dest="command",
     )
 
+    # Deploy a container for a spec (push to docker hub) if found
+    deploy = subparsers.add_parser("deploy", help="deploy test container.")
+
     # Run a complete test, which includes building the test container
     test = subparsers.add_parser("test", help="run tests.")
     test.add_argument(
@@ -370,14 +379,6 @@ def get_parser():
     build = subparsers.add_parser("build", help="build a testing container.")
 
     for command in [test, build]:
-        command.add_argument("packages", help="packages to test", nargs="+")
-        command.add_argument(
-            "--root",
-            "-r",
-            dest="root",
-            help="The root with the tests and testers directories.",
-            default=os.getcwd(),
-        )
         command.add_argument(
             "--use-cache",
             dest="use_cache",
@@ -391,6 +392,16 @@ def get_parser():
             help="If a container build fails, exit.",
             default=True,
             action="store_false",
+        )
+
+    for command in [test, build, deploy]:
+        command.add_argument("packages", help="packages to test", nargs="+")
+        command.add_argument(
+            "--root",
+            "-r",
+            dest="root",
+            help="The root with the tests and testers directories.",
+            default=os.getcwd(),
         )
         command.add_argument(
             "--tester",
@@ -423,6 +434,11 @@ def main():
     if args.command == "build":
         for package in args.packages:
             setup.build(package, args.tester, args.use_cache, args.fail_fast)
+
+    elif args.command == "deploy":
+        for package in args.packages:
+            for container in setup.get_containers(package, args.tester):
+                setup.deploy(container)
 
     elif args.command == "test":
         for package in args.packages:

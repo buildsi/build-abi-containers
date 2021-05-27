@@ -1,7 +1,7 @@
-name: "Run Tests on Changes"
+name: "Deploy test contianers"
 
 on:
-  pull_request:
+  push:
     branches:
       - main
  
@@ -36,12 +36,15 @@ jobs:
         uses: actions/checkout@v2        
       - name: Build Test Containers
         run: |
+            echo ${{ secrets.DOCKER_PASSWORD }} | docker login quay.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
             git fetch
             printf "Looking for changes in test ${{ matrix.test }}\n"
             pip install -r requirements.txt
             root="${PWD}"
             cd tests
-            for testyaml in $(git diff --name-only origin/main HEAD .); do
+            commit=$(git rev-parse HEAD)
+            printf "Looking for changed test containers with commit $commit\n"
+            for testyaml in $(git diff-tree --no-commit-id --name-only -r HEAD .); do
                 relpath=$(basename ${testyaml})
                 if [ ! -f "${relpath}" ]; then                
                     printf "${relpath} does not exist.\n"
@@ -49,13 +52,8 @@ jobs:
                 fi
                 if [ "$relpath" == "${{ matrix.test }}" ]; then                
                     printf "Found changed test file ${testyaml}\n"
-                    python ../build-si-containers test --root "${root}" "${relpath}"
+                    python ../build-si-containers build --root "${root}" "${relpath}"
                     python ../build-si-containers deploy --root "${root}" "${relpath}"
                 fi
             done
             cd ../
-            
-      - uses: actions/upload-artifact@v2
-        with:
-          name: "results-${{ matrix.test }}"
-          path: tests/results
