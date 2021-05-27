@@ -35,9 +35,6 @@ jobs:
         uses: actions/checkout@v2
       - name: Build and Deploy
         env:
-          # Space separated list of versions to build for a named tester
-          libabigail_versions: "1.8.2"
-
           # registry organization
           registry: quay.io/buildsi
 
@@ -45,7 +42,6 @@ jobs:
             git fetch
             printf "Looking for changes in tester ${{ matrix.tester }}\n"
             cd docker/${{ matrix.tester }}
-            versions="${{ matrix.tester }}_versions"
             newbuilds=no
             commit=$(git rev-parse HEAD)
             printf "Looking for changed containers with commit $commit\n"
@@ -55,11 +51,18 @@ jobs:
                     printf "Dockerfile ${dockerfile} does not exist, skipping.\n"
                     continue
                 fi
-
                 printf "Found changed Dockerfile ${dockerfile}\n"
+
+                # A version file must exist
+                tester_dir=$(dirname $dockerfile)
+                if [ ! -f "$tester_dir/versions" ]; then
+                    printf "versions text file missing for $dockerfile."
+                    exit 1
+                fi
+                versions=$(cat $tester_dir/versions)
                 newbuilds=yes
                 filename=$(basename $dockerfile)
-                for version in ${!versions}; do                  
+                for version in ${versions}; do                  
                     container=${{ env.registry }}/${{ matrix.tester }}:${version}
                     printf "Building ${dockerfile} with version ${version} to container ${container}\n"  
                     docker build -f ${filename} --build-arg LIBRARY_VERSION=${version} -t ${container} .

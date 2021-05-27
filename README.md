@@ -164,11 +164,11 @@ A tester is a base for running some kind of test on a binary. When you add a tes
 you need to:
 
  1. Give the tester a name (e.g., libabigail) to use across files.
- 2. Create the tester's config file
+ 2. Create the tester's config file and versions
  3. Create the tester runscript (and additional scripts)
  4. Create a Dockerfile base template in [docker](docker) in a subdirectory named for the tester.
  5. Create a Dockerfile test template in [templates](templates) also in a subfolder named for the tester.
- 6. Add the tester versions to the CI so the bases are built automatically.
+ 6. Understand how the tester bases are built automatically.
  
 Each of these steps will be discussed in detail.
  
@@ -177,10 +177,25 @@ Each of these steps will be discussed in detail.
 You should choose a simple, lowercase name to identify your tester, and this will
 be used for the subfolders and identifiers of the tester.
 
-#### 2. Create the tester config file
+#### 2. Create the tester config file and versions
 
-For now, testers typically just need a name and a version, and an entrypoint
-and script to run, which will be written to `/build-si/`. So you should write
+You should define your versions to build for a tester in a "versions" file
+located in the tester subfolder. For example:
+
+```bash
+testers/
+└── libabigail
+    ├── bin
+    │   └── abi-decode
+    ├── versions
+    └── tester.yaml
+```
+
+In the above, we see that a tester also needs a tester.yaml file. THis file
+defines metadata like the name of the tester (matching the folder), the 
+entrypoint and runscript for the container (written to `/build-si/`) along
+with the active version. Since we typically want to consistently test using one
+version, for now it is designed in this way. So you should write
 a config file named `tester.yaml` in the [testers](testers) directory in a subfolder
 named for the tester. For example, libabigail looks like:
 
@@ -192,17 +207,7 @@ tester:
   entrypoint: /bin/bash
 ```
 
-And is located at:
-
-```yaml
-testers/
-└── libabigail
-    ├── bin
-    │   └── abi-decode
-    └── tester.yaml
-```
-
-Any files that you add in bin will be added to /usr/local/bin, the idea being
+Notice the bin folder? Any files that you add in bin will be added to /usr/local/bin, the idea being
 you can write extra scripts for the tester to use. For now we are just supporting one version of a tester.
 
 #### 3. Create the tester runscript
@@ -254,27 +259,17 @@ The entrypoint will be added dynamically based on the tester.entrypoint, and tes
 We are also suggesting the convention of storing the script in the `build-si` directory
 at the root of the container.
 
-#### 6. Add the tester to the CI
+#### 6. Understand how the tester bases are built automatically
 
-In each of [deploy-containers.yaml](.github/workflows/deploy-containers.yaml) and [build-containers.yaml](.github/workflows/build-containers.yaml) add the versions for the tester (`<tester>_versions`) in the environment (env) section: 
-
-```yaml
-...
-  - name: Test Building Changes
-    env:
-      # Space separated list of versions to build for a named tester
-      libabigail_versions: "1.8.2"
-```
-
-In the above, you see we've added a libabigail_versions
-variable to define our versions. This needs to be done with both workflow files. 
-The testers will be discovered via the names of subfolders of the [testers](testers) folder.
-When a file is changed in one of these folders, it will be built with CI via `build-containers.yaml`
+In each of [deploy-containers.yaml](.github/workflows/deploy-containers.yaml) and [build-containers.yaml](.github/workflows/build-containers.yaml) we discover a list of testers by way of listing subfolders in the [testers](testers) directory.
+Then, for each changed file (according to git history), we trigger a new build. Versions
+for one or more of these builds are derived from the `versions` text file we created earlier.
+And that's it! When a file is changed in one of these folders, it will be built with CI via `build-containers.yaml`
 and then deployed on merge to master with `deploy-containers.yaml`
 
 **Note: You should always merge only one clean commit into master, so take care to rebase in PRs and write good messages!**
 
-From these bases, we will also have a means to test using these containers.
+These are the bases we add packages on top of, and then run tests.
 
 ### Add a Test
 
