@@ -31,9 +31,10 @@ logging.basicConfig(level=logging.INFO)
 
 # We want the root
 here = os.path.abspath(os.path.dirname(__file__))
+templates = os.path.join(here, "templates")
 
 env = Environment(
-    autoescape=select_autoescape(["html"]), loader=FileSystemLoader("templates")
+    autoescape=select_autoescape(["html"]), loader=FileSystemLoader(templates)
 )
 
 config_schema = {
