@@ -14,7 +14,7 @@ evaluating ABI, and to run tests for ABI in the CI. The approach we take is the 
 
  - [docker](docker): includes `Dockerfile`s, one per testing base, that will be deployed to [quay.io/buildsi](https://quay.io/organization/buildsi).
  - [tests](tests): includes yaml config files that are matched to a spack package to test (or more generally an autamus container). The configs are validate when loaded.
- - [testers](testers): is an folder of scripts
+ - [testers](testers): is an folder of tester subdirectories, which should be named for the tester (e.g., libabigail). No other files should be put in this folder root.
  - [templates](templates): includes both container build templates, and tester runtime templates. The container build templates.
 
 ## Usage
@@ -168,7 +168,7 @@ you need to:
  3. Create the tester runscript (and additional scripts)
  4. Create a Dockerfile base template in [docker](docker) in a subdirectory named for the tester.
  5. Create a Dockerfile test template in [templates](templates) also in a subfolder named for the tester.
- 6. Add the tester to the CI so the bases are built automatically.
+ 6. Add the tester versions to the CI so the bases are built automatically.
  
 Each of these steps will be discussed in detail.
  
@@ -256,35 +256,32 @@ at the root of the container.
 
 #### 6. Add the tester to the CI
 
-In each of [deploy-containers.yaml](.github/workflows/deploy-containers.yaml) and [build-containers.yaml](.github/workflows/build-containers.yaml) add the name of the tester to testers, and add an environment variable `<tester>_versions` that includes a string separated list of versions.
+In each of [deploy-containers.yaml](.github/workflows/deploy-containers.yaml) and [build-containers.yaml](.github/workflows/build-containers.yaml) add the versions for the tester (`<tester>_versions`) in the environment (env) section: 
 
 ```yaml
-strategy:
-  # Add new testers here. Each tester needs a subfolder in docker, and a
-  # Dockerfile that accepts a LIBRARY_VERSION variable
-  matrix:
-    tester: ["libabigail"]
-steps:
-  - name: Checkout
-    uses: actions/checkout@v2        
+...
   - name: Test Building Changes
     env:
       # Space separated list of versions to build for a named tester
       libabigail_versions: "1.8.2"
 ```
 
-In the above, you see we've added "libabigail" as a tester, and a libabigail_version
+In the above, you see we've added a libabigail_versions
 variable to define our versions. This needs to be done with both workflow files. 
+The testers will be discovered via the names of subfolders of the [testers](testers) folder.
 When a file is changed in one of these folders, it will be built with CI via `build-containers.yaml`
 and then deployed on merge to master with `deploy-containers.yaml`
 
 **Note: You should always merge only one clean commit into master, so take care to rebase in PRs and write good messages!**
 
-From these bases, we will also have a means to test using these containers (not developed yet).
+From these bases, we will also have a means to test using these containers.
 
-## Development Notes
+### Add a Test
 
-### How will it work?
+Adding a test comes down to:
+
+1. Adding a yaml file in the [tests](tests) folder named according to the package (or group) to test.
+2. If build caches are not available, ensuring an autamus container is built in [buildsi](https://github.com/autamus/registry/tree/main/containers/buildsi/) namespace.
 
 In the [tests](tests) folder you will find different families of packages to test.
 For example, the `mpich.yaml` file will eventually build different containers to
@@ -306,7 +303,10 @@ package:
   - libs/libmpich.so
 ```
 
-Each of these packages (and the versions requested) will need to be available
+Currently, we are developing with matching autamus containers (e.g., asking
+to test mpich will use [this container](https://github.com/orgs/autamus/packages/container/package/buildsi-mpich)) 
+but once we have a build cache to quickly install from, it should be possible to write any number of packages in
+a file. For now, wach of these packages (and the versions requested) will need to be available
 on the autamus registry, which means that:
 
  - we need to be able to build with debug symbols globally

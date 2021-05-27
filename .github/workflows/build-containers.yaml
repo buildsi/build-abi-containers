@@ -6,14 +6,29 @@ on:
       - main
  
 jobs:
-  check:
+  list-testers:
     name: Check for Changes
     runs-on: ubuntu-latest
+    outputs:
+      testers: ${{ steps.list.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2        
+      - name: Save testers list
+        id: list
+        run: |
+          cd testers
+          testers=$(python -c 'import os, json; print json.dumps(os.listdir("."))')  
+          echo '::set-output name=matrix::$testers'
+
+  build-containers:
+    needs:
+      - list-testers
+    runs-on: ubuntu-latest
     strategy:
-      # Add new testers here. Each tester needs a subfolder in docker, and a
-      # Dockerfile that accepts a LIBRARY_VERSION variable
       matrix:
-        tester: ["libabigail"]
+        container: ${{ fromJson(needs.list-testers.outputs.testers) }}
+    name: Build ${{ matrix.container }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2        
