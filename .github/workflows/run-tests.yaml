@@ -50,7 +50,6 @@ jobs:
                 if [ "$relpath" == "${{ matrix.test }}" ]; then                
                     printf "Found changed test file ${testyaml}\n"
                     python ../build-si-containers test --root "${root}" "${relpath}"
-                    python ../build-si-containers deploy --root "${root}" "${relpath}"
                 fi
             done
             cd ../
