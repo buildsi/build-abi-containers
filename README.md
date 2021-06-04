@@ -7,6 +7,7 @@ evaluating ABI, and to run tests for ABI in the CI. The approach we take is the 
  - For some number of packages, define libraries and binaries within to build and test.
  - Build a testing container on top of a base container, with an [autamus](https://autamus.io) package added via multi-stage build. We might change this to use a spack build cache instead, but right now I'm testing with autamus containers.
  - Run the entrypoint of the container with a local volume to run tests and generate output.
+ - Tester container bases along with the tester+test are deployed automatically to reproduce running the tests. Testers are built and deployer when a changed tester Dockerfile is pushed to main, and tests are deployed when the label `deploy-test-container` is added to a PR.
 
 ## Table of Contents
 
