@@ -1,14 +1,16 @@
-name: "Deploy test containers"
+name: Deploy test containers
 
 on:
-  push:
-    branches:
-      - main
- 
+  pull_request:
+    types: [labeled]
 
 jobs:
   list-tests:
+    if: ${{ github.event.label.name == 'deploy-test-container' }}
+    runs-on: ubuntu-latest
     name: List Tests
+    steps:
+
     runs-on: ubuntu-latest
     outputs:
       tests: ${{ steps.list.outputs.tests }}
@@ -23,7 +25,7 @@ jobs:
           echo "Found tests $tests"
           echo "::set-output name=tests::${tests}"
   
-  build-test-containers:
+  deploy-test-containers:
     needs:
       - list-tests
     runs-on: ubuntu-latest
@@ -34,7 +36,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2        
-      - name: Build Test Containers
+      - name: Build and Deploy Test Containers
         run: |
             echo ${{ secrets.DOCKER_PASSWORD }} | docker login quay.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
             git fetch
@@ -42,10 +44,7 @@ jobs:
             pip install -r requirements.txt
             root="${PWD}"
             cd tests
-            commit=$(git rev-parse HEAD)
-            printf "Looking for changed test containers with commit $commit\n"
-            for testyaml in $(git diff-tree --no-commit-id --name-only -r HEAD .); do
-                printf "Inspecting ${testyaml}\n"
+            for testyaml in $(git diff --name-only origin/main HEAD .); do
                 relpath=$(basename ${testyaml})
                 if [ ! -f "${relpath}" ]; then                
                     printf "${relpath} does not exist.\n"
@@ -58,3 +57,9 @@ jobs:
                 fi
             done
             cd ../
+            
+      - uses: actions/upload-artifact@v2
+        with:
+          name: "results-${{ matrix.test }}"
+          path: tests/results
+
