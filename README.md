@@ -19,6 +19,7 @@ evaluating ABI, and to run tests for ABI in the CI. The approach we take is the 
    - [Test](#test)
    - [Add a Tester](#add-a-tester)
    - [Add a Test](#add-a-test)
+   - [Reproduce a Test](#reproduce-a-test)
    - [Bolos Notes](#bolos-notes)
 
 ## Quick Start
@@ -409,6 +410,94 @@ We could install with spack natively, but we will save a lot of time using
 pre-built layers. Note that the scripts to make this happen aren't developed
 yet - we just have the base containers.
 
+ 
+### Reproduce a Test
+
+If you have a test case to share with a colleague or otherwise reproduce,
+since all testing bases are uploaded to the quay.io registry, this is easy to do!
+For example, let's say that we want to reproduce with testing base libabigail
+and tests for mpich. We can use the [quay.io/buildsi/libabigail-test-mpich](https://quay.io/repository/buildsi/libabigail-test-mpich?tab=tags)
+container. First (in case you have an old version) pull:
+
+```bash
+$ docker pull quay.io/buildsi/libabigail-test-mpich:latest
+```
+
+And then because the entrypoint is set to run the tests, we can just run the container!
+
+```bash
+$ docker run -it --rm quay.io/buildsi/libabigail-test-mpich:latest
+Testing lib/libmpich.so with abidw
+time -p abidw  --hd /opt/spack/opt/spack/linux-ubuntu18.04-skylake/gcc-7.5.0/mpich-3.0.4-4ibio2outodij3iricf3avkjnojh7iil/include  /opt/spack/opt/spack/linux-ubuntu18.04-skylake/gcc-7.5.0/mpich-3.0.4-4ibio2outodij3iricf3avkjnojh7iil/lib/libmpich.so --out-file /results/libabigail/1.8.2/mpich/3.0.4/lib/libmpich.so.xml > /results/libabigail/1.8.2/mpich/3.0.4/lib/libmpich.so.xml.log 2>&1
+Comparing mpich versions 3.0.4 and 3.0.4 lib/libmpich.so with abidiff
+...
+```
+
+And you would bind results to your host to save them locally.
+
+```bash
+mkdir -p results
+$ docker run -it --rm -v $PWD/results:/results quay.io/buildsi/libabigail-test-mpich:latest
+```
+
+Or you can run tests interactively in the container:
+
+```bash
+$ docker run -it --rm --entrypoint bash quay.io/buildsi/libabigail-test-mpich:latest
+root@6d2ea5dbddbf:/build-si# python3 runtests.py 
+```
+
+When you are done, the testing structure is the same as before - a nested tree
+organized by tester, package, and versions so that all tests can live alongside
+one another.
+
+```
+/results/
+`-- libabigail
+    `-- 1.8.2
+        `-- mpich
+            |-- 3.0.4
+            |   `-- lib
+            |       |-- libmpich.so.xml
+            |       `-- libmpich.so.xml.log
+            |-- 3.1.4
+            |   `-- lib
+            |       |-- libmpich.so.xml
+            |       `-- libmpich.so.xml.log
+            |-- 3.3.2
+            |   `-- lib
+            |       |-- libmpich.so.xml
+            |       `-- libmpich.so.xml.log
+            |-- 3.4.1
+            |   `-- lib
+            |       |-- libmpich.so.xml
+            |       `-- libmpich.so.xml.log
+            `-- diff
+                |-- 3.0.4-3.0.4
+                |-- 3.0.4-3.0.4.log
+                |-- 3.0.4-3.1.4
+...
+                |-- 3.4.1-3.3.2
+                |-- 3.4.1-3.3.2.log
+                |-- 3.4.1-3.4.1
+                `-- 3.4.1-3.4.1.log
+
+12 directories, 40 files
+```
+
+If you already have the container locally, you can also test with the script here:
+
+```bash
+./build-si-containers test mpich
+```
+
+or force a rebuild.
+
+```bash
+./build-si-containers test mpich --rebuild
+```
+
+It's up to you!
  
 ### Bolo's Notes
 

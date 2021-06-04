@@ -2,8 +2,8 @@ package:
  name: mpich
  versions:
 # versions will be used when we add a build cache, for now they are 
-# discovered in the autamus base container
-  - "3.4.1"
+# discovered in the autamus base container ghcr.io/autamus/buildsi-mpich
+  - "3.2.1 device=ch3 netmod=tcp"
 #  - "3.2.1"
 #  - "3.3"
 #  - "3.3.2"
