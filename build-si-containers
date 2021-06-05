@@ -199,7 +199,16 @@ class TestSetup:
 
         self.containers = set(self.containers)
 
-    def build(self, package, testers, use_cache=False, fail_fast=True, skips=None):
+    def build(
+        self,
+        package,
+        testers,
+        use_cache=False,
+        cache_only=False,
+        fail_fast=True,
+        skips=None,
+        docker_no_cache=False,
+    ):
         """
         Create a Dockerfile and build
         """
@@ -232,7 +241,9 @@ class TestSetup:
             runscript = self.get_tester_runscript(tester).render(
                 package=package, tester=tester
             )
-            out = template.render(package=package, tester=tester, bins=bins)
+            out = template.render(
+                package=package, tester=tester, bins=bins, cache_only=cache_only
+            )
             container_name = "quay.io/buildsi/%s-test-%s:latest" % (
                 tester.name,
                 package.name,
@@ -257,7 +268,10 @@ class TestSetup:
                         os.path.join(tmp, binfile),
                     )
 
-                cmd = ["docker", "build", "-t", container_name, tmp]
+                cmd = ["docker", "build"]
+                if docker_no_cache:
+                    cmd.append("--no-cache")
+                cmd += ["-t", container_name, tmp]
                 res = subprocess.call(cmd)
                 if res == 0:
                     containers.append(container_name)
@@ -387,6 +401,20 @@ def get_parser():
             action="store_true",
         )
         command.add_argument(
+            "--cache-only",
+            dest="cache_only",
+            help="ONLY allow install from build cache.",
+            default=False,
+            action="store_true",
+        )
+        command.add_argument(
+            "--docker-no-cache",
+            dest="docker_no_cache",
+            help="Do not use the docker cache.",
+            default=False,
+            action="store_true",
+        )
+        command.add_argument(
             "--fail-fast",
             dest="fail_fast",
             help="If a container build fails, exit.",
@@ -433,7 +461,14 @@ def main():
 
     if args.command == "build":
         for package in args.packages:
-            setup.build(package, args.tester, args.use_cache, args.fail_fast)
+            setup.build(
+                package,
+                args.tester,
+                use_cache=args.use_cache,
+                fail_fast=args.fail_fast,
+                docker_no_cache=args.docker_no_cache,
+                cache_only=args.cache_only,
+            )
 
     elif args.command == "deploy":
         for package in args.packages:
@@ -452,7 +487,13 @@ def main():
                     if container in setup.containers:
                         skips.append(container)
             containers = setup.build(
-                package, args.tester, args.use_cache, args.fail_fast, skips=skips
+                package,
+                args.tester,
+                use_cache=args.use_cache,
+                fail_fast=args.fail_fast,
+                skips=skips,
+                docker_no_cache=args.docker_no_cache,
+                cache_only=args.cache_only,
             )
             for container in containers:
                 setup.test(container, args.outdir)

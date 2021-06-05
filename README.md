@@ -142,6 +142,25 @@ container bases from autamus. But if you want to give the build cache a shot
 ./build-si-containers build --use-cache mpich
 ```
 
+You can say to _only_ use the build cache (packages that aren't completely there
+will not be able to build):
+
+```bash
+# use the spack build cache, but disable docker cache
+./build-si-containers build --use-cache --cache-only mpich
+```
+
+This is not recommended unless you have a fully populated cache.
+You can also disable using the docker cache, if apppropriate:
+
+```bash
+# use the spack build cache, but disable docker cache
+./build-si-containers build --use-cache --docker-no-cache mpich
+```
+
+All of these cache commands also work for test, since test can also
+do a build if necessary.
+
 ### Test
 
 Once your container is built, testing is just running it!
