@@ -16,6 +16,7 @@ FROM quay.io/buildsi/{{ tester.name }}:{{ tester.version }}
 COPY --from=base /opt/spack /opt/spack
 
 WORKDIR /build-si/
+ENV PATH=/opt/spack/bin:$PATH
 COPY {{ package.name }}.yaml /build-si/tests.yaml
 COPY {{ tester.runscript }} /build-si/{{ tester.runscript }}
 {% for bin in bins %}COPY {{ bin }} /usr/local/bin/{{ bin }}

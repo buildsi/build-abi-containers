@@ -51,6 +51,15 @@ config_schema = {
                 "versions": {"type": "array", "items": {"type": "string"}},
                 "headers": {"type": "array", "items": {"type": "string"}},
                 "libs": {"type": "array", "items": {"type": "string"}},
+                "bins": {"type": "array", "items": {"type": "string"}},
+                "run": {"type": "array", "items": {"type": "string"}},
+            },
+        },
+        "test": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "build_cache": {"type": "boolean"},
             },
         }
     },
@@ -82,21 +91,8 @@ class Tester:
         self.config = read_yaml(tester_config)
         jsonschema.validate(self.config, schema=tester_schema)
 
-    @property
-    def version(self):
-        return self.config["tester"]["version"]
-
-    @property
-    def name(self):
-        return self.config["tester"]["name"]
-
-    @property
-    def entrypoint(self):
-        return self.config["tester"]["entrypoint"]
-
-    @property
-    def runscript(self):
-        return self.config["tester"]["runscript"]
+    def __getattr__(self, key):
+        return self.config['tester'].get(key)
 
 
 class TestPackage:
@@ -105,21 +101,8 @@ class TestPackage:
         self.config = read_yaml(package_config)
         jsonschema.validate(self.config, schema=config_schema)
 
-    @property
-    def versions(self):
-        return self.config["package"]["versions"]
-
-    @property
-    def libs(self):
-        return self.config["package"]["libs"]
-
-    @property
-    def include(self):
-        return self.config["package"]["headers"]
-
-    @property
-    def name(self):
-        return self.config["package"]["name"]
+    def __getattr__(self, key):
+        return self.config['package'].get(key)
 
 
 class TestSetup:

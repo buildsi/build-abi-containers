@@ -12,3 +12,15 @@ package:
   - include
  libs:
   - lib/libmpich.so
+
+ # Extra commands to run to compile examples.
+ # Assumes package bin on the path, relative paths to install directory
+ run:
+   - mpicc -c share/mpich/src/examples/cpi.c -o share/mpich/src/examples/cpi
+
+ # Binaries to run tests with across versions (relative to install directory)
+ bins:
+   - share/mpich/src/examples/cpi
+
+test:
+  build_cache: true
