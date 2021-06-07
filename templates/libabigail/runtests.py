@@ -38,9 +38,9 @@ def run(cmd):
     """
     Run a command with os.system
     """
-    print(cmd)
-    os.system(cmd)
-
+    if cmd:
+        print(cmd)
+        os.system(cmd)
 
 def main():
     """
