@@ -9,9 +9,6 @@ jobs:
     if: ${{ github.event.label.name == 'deploy-test-container' }}
     runs-on: ubuntu-latest
     name: List Tests
-    steps:
-
-    runs-on: ubuntu-latest
     outputs:
       tests: ${{ steps.list.outputs.tests }}
     steps:
