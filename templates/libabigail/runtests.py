@@ -107,6 +107,8 @@ def main():
 
                 out_file = "/results/{{ tester.name }}/{{ tester.version }}/{{ package.name }}/compat/%s-%s" % (spec_version, spec2_version)
                 create_outdir(out_file)
+                
+                # Important! This requires debug sumbols, so we allow to fail since most don't have
                 run("time -p abicompat %s %s %s > %s > %s.log" % (bin1, lib, lib2, out_file, out_file))
                 {% endfor %}
         {% endfor %}
