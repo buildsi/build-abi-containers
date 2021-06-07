@@ -191,6 +191,7 @@ class TestSetup:
         fail_fast=True,
         skips=None,
         docker_no_cache=False,
+        prebuilt=False,
     ):
         """
         Create a Dockerfile and build
@@ -209,7 +210,7 @@ class TestSetup:
         for tester in self.testers:
 
             # Get the tester build template
-            template = self.get_tester_template(tester, package.test['build_cache'] or use_cache)
+            template = self.get_tester_template(tester, package.test['build_cache'] or use_cache, prebuilt)
             tester = Tester(self.get_tester_config(tester))
 
             # Right now one container has all versions
@@ -306,15 +307,17 @@ class TestSetup:
         template = template.replace(self.templates_dir, "").strip("/")
         return env.get_template(template)
 
-    def get_tester_template(self, tester, use_cache=False):
+    def get_tester_template(self, tester, use_cache=False, prebuilt=False):
         """
         Given a package and tester, return the container template.
         """
         dockerfile = os.path.join(self.templates_dir, tester, "Dockerfile")
-        if not os.path.exists(dockerfile) and not use_cache:
-            dockerfile = os.path.join(self.templates_dir, "Dockerfile.default")
+        if not os.path.exists(dockerfile) and prebuilt:
+            dockerfile = os.path.join(self.templates_dir, "Dockerfile.prebuilt")
         elif not os.path.exists(dockerfile) and use_cache:
             dockerfile = os.path.join(self.templates_dir, "Dockerfile.buildcache")
+        else:
+            dockerfile = os.path.join(self.templates_dir, "Dockerfile.default")
         dockerfile = dockerfile.replace(self.templates_dir, "").strip("/")
         return env.get_template(dockerfile)
 
@@ -387,6 +390,13 @@ def get_parser():
             action="store_true",
         )
         command.add_argument(
+            "--prebuilt",
+            dest="prebuilt",
+            help="Use a prebuilt container from ghcr.io/autamus/builds-<package>",
+            default=False,
+            action="store_true",
+        )
+        command.add_argument(
             "--cache-only",
             dest="cache_only",
             help="ONLY allow install from build cache.",
@@ -454,6 +464,7 @@ def main():
                 fail_fast=args.fail_fast,
                 docker_no_cache=args.docker_no_cache,
                 cache_only=args.cache_only,
+                prebuilt=args.prebuilt,
             )
 
     elif args.command == "deploy":
@@ -480,6 +491,7 @@ def main():
                 skips=skips,
                 docker_no_cache=args.docker_no_cache,
                 cache_only=args.cache_only,
+                prebuilt=args.prebuilt,
             )
             for container in containers:
                 setup.test(container, args.outdir)

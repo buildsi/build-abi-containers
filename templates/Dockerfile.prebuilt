@@ -1,0 +1,14 @@
+FROM ghcr.io/autamus/buildsi-{{ package.name }}:latest as base
+FROM quay.io/buildsi/{{ tester.name }}:{{ tester.version }}
+
+COPY --from=base /opt/spack /opt/spack
+
+ENV PATH=/opt/spack/bin:$PATH
+WORKDIR /build-si/
+COPY {{ package.name }}.yaml /build-si/tests.yaml
+COPY {{ tester.runscript }} /build-si/{{ tester.runscript }}
+{% for bin in bins %}COPY {{ bin }} /usr/local/bin/{{ bin }}
+{% endfor %}
+RUN apt-get install -y time && \
+    mkdir -p /results && chmod +x /build-si/{{ tester.runscript }} {% if bins %}{% for bin in bins %} && chmod +x /usr/local/bin/{{ bin }}{% endfor %}{% endif %}
+ENTRYPOINT ["{{ tester.entrypoint }}", "/build-si/{{ tester.runscript }}"]
