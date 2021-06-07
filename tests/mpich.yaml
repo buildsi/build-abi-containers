@@ -1,13 +1,10 @@
 package:
  name: mpich
  versions:
-# versions will be used when we add a build cache, for now they are 
-# discovered in the autamus base container ghcr.io/autamus/buildsi-mpich
-  - "3.2.1 device=ch3 netmod=tcp"
-#  - "3.2.1"
-#  - "3.3"
-#  - "3.3.2"
-#  - "2-1.5"
+  - "3.4.1"
+  - "3.3.2"
+  - "3.1.4 device=ch3 netmod=tcp"
+  - "3.0.4 device=ch3 netmod=tcp"
  headers:
   - include
  libs:
@@ -23,4 +20,5 @@ package:
    - share/mpich/src/examples/cpi
 
 test:
+  # Always use the build cache instead of prebuilt container
   build_cache: true
