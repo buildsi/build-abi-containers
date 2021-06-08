@@ -54,9 +54,3 @@ jobs:
                 fi
             done
             cd ../
-            
-      - uses: actions/upload-artifact@v2
-        with:
-          name: "results-${{ matrix.test }}"
-          path: tests/results
-
