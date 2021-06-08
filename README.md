@@ -110,32 +110,39 @@ and if we should use the spack build cache to install (not recommended currently
 it doesn't have most of what we need)
 
 ```bash
-usage: build-si-containers build [-h] [--root ROOT] [--use-cache] [--tester {libabigail,all}] packages [packages ...]
+usage: build-si-containers build [-h] [--use-cache] [--prebuilt] [--cache-only] [--docker-no-cache] [--fail-fast] [--root ROOT]
+                                 [--tester {libabigail,all}]
+                                 packages [packages ...]
 
 positional arguments:
   packages              packages to test
 
 optional arguments:
   -h, --help            show this help message and exit
-  --root ROOT, -r ROOT  The root with the tests and testers directories.
   --use-cache           Install from build cache instead of autamus.
+  --prebuilt            Use a prebuilt container from ghcr.io/autamus/builds-<package>
+  --cache-only          ONLY allow install from build cache.
+  --docker-no-cache     Do not use the docker cache.
+  --fail-fast           If a container build fails, exit.
+  --root ROOT, -r ROOT  The root with the tests and testers directories.
   --tester {libabigail,all}, -t {libabigail,all}
                         The tester to run tests for.
 ```
 
-We will be doing a multi-stage build with a testing base from [quay.io/buildsi](https://quay.io/organization/buildsi), combined with a package of interest from [autamus](https://autamus.io). The container from autamus currently has multiple versions
-of the same package installed, as this is what Bolo was doing. But we can change this to, for
-example, install any set of packages on demand from a spack build cache. So to build the container
-for example to test "mpich" which has a yaml file in
-[tests](tests) you can do:
+We will be doing a multi-stage build with a testing base from [quay.io/buildsi](https://quay.io/organization/buildsi).
+If you use a prebuilt container (flag `--prebuilt`) then it needs to be available from [autamus](https://autamus.io) with the
+name `ghcr.io/autamus/buildsi-<package>` and have all versions of interest installed. Currently,
+the default is to read versions from [tests](tests) and then built from scratch. If you want to build
+a test container (e.g., the file mpich.yaml) you can do:
 
 ```bash
 ./build-si-containers build mpich
 ```
 
-If we can add these steps to CI, perhaps on any change of a tester or package, then
-the containers will be ready to go to produce results. By default, we use
-container bases from autamus. But if you want to give the build cache a shot
+This build is also done for `build-si-containers test` if the container has not
+been built yet. During CI, when the container is built and tested, if the label `deploy-test-conatainer`
+is applied, the testing container will be pushed to quay.io, where anyone can
+pull to rerun and reproduce results. If you want to give the build cache a shot
 (maybe if we can update it to include more packages?) you can do:
 
 ```bash
@@ -178,9 +185,8 @@ You can also request build and tests to be run at the same time:
 The test command also supports a few other parameters:
 
 ```bash
-usage: build-si-containers test [-h] [--outdir OUTDIR] [--rebuild]
-                                [--root ROOT] [--use-cache] [--fail-fast]
-                                [--tester {libabigail,all}]
+usage: build-si-containers test [-h] [--outdir OUTDIR] [--rebuild] [--use-cache] [--prebuilt] [--cache-only] [--docker-no-cache]
+                                [--fail-fast] [--root ROOT] [--tester {libabigail,all}]
                                 packages [packages ...]
 
 positional arguments:
@@ -189,12 +195,14 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   --outdir OUTDIR, -o OUTDIR
-                        Write test results to this directory (defaults to
-                        results in $PWD)
+                        Write test results to this directory (defaults to results in $PWD)
   --rebuild             Force rebuild of the container if it does not exist.
-  --root ROOT, -r ROOT  The root with the tests and testers directories.
   --use-cache           Install from build cache instead of autamus.
+  --prebuilt            Use a prebuilt container from ghcr.io/autamus/builds-<package>
+  --cache-only          ONLY allow install from build cache.
+  --docker-no-cache     Do not use the docker cache.
   --fail-fast           If a container build fails, exit.
+  --root ROOT, -r ROOT  The root with the tests and testers directories.
   --tester {libabigail,all}, -t {libabigail,all}
                         The tester to run tests for.
 ```
