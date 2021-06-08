@@ -34,6 +34,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2        
+
+      - name: Make Space For Build
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+
       - name: Build Test Containers
         run: |
             git fetch
