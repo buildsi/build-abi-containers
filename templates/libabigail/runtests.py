@@ -99,7 +99,7 @@ def main():
             run("time -p abidiff {% for include in package.headers %} --hd1 %s/{{ include }} --hd2 %s/{{ include }} {% endfor %} %s %s > %s > %s.log" %({% for include in package.headers %}path, path2, {% endfor %}lib, lib2, out_file, out_file))
 
             # If we have bins to run abicompat with
-            {% for binary in package.bins %}
+            {% if package.bins %}{% for binary in package.bins %}
             bin1 = os.path.join(path, "{{ binary }}") 
 
             # We can only run abicompat if it exists
@@ -110,7 +110,7 @@ def main():
                 
                 # Important! This requires debug sumbols, so we allow to fail since most don't have
                 run("time -p abicompat %s %s %s > %s > %s.log" % (bin1, lib, lib2, out_file, out_file))
-                {% endfor %}
+                {% endfor %}{% endif %}
         {% endfor %}
 
 
