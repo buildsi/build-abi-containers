@@ -1,8 +1,6 @@
 package:
  name: openmpi
  versions:
-  - "1.0 -wrapper-rpath"
-  - "1.1 -wrapper-rpath"
   - "1.2 -wrapper-rpath"
   - "1.3 -wrapper-rpath"
   - "1.4 -wrapper-rpath"
@@ -20,12 +18,12 @@ package:
 
  # Extra commands to run to compile examples.
  # Assumes package bin on the path, relative paths to install directory
- run:
-   - mpicc share/openmpi/src/examples/ring_c.c -o share/openmpi/src/examples/ring_c
+ # run:
+ #  - mpicc share/openmpi/src/examples/ring_c.c -o share/openmpi/src/examples/ring_c
 
  # Binaries to run tests with across versions (relative to install directory)
- bins:
-   - share/openmpi/src/examples/ring_c
+ # bins:
+ #  - share/openmpi/src/examples/ring_c
 
  headers:
   - include
