@@ -1,7 +1,6 @@
 package:
  name: openmpi
  versions:
-  - "1.2 -wrapper-rpath"
   - "1.3 -wrapper-rpath"
   - "1.4 -wrapper-rpath"
   - "1.5 -wrapper-rpath"
