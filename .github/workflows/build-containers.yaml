@@ -32,7 +32,12 @@ jobs:
     name: Build ${{ matrix.tester }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2        
+        uses: actions/checkout@v2
+      - name: Make Space For Build
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+
       - name: Test Building Changes
         env:
           # registry organization

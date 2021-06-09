@@ -1,0 +1,18 @@
+package:
+ name: boost
+ versions:
+   - "1.52.0"
+   - "1.58.0"
+   - "1.64.0"
+   - "1.70.0"
+   - "1.76.0"
+
+ headers:
+  - include
+
+ libs:
+  - lib/libboost_atomic.so
+
+test:
+  # Always use the build cache instead of prebuilt container?
+  build_cache: false
