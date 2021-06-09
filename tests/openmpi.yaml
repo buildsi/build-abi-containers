@@ -1,0 +1,34 @@
+package:
+ name: openmpi
+ versions:
+  - "1.3 -wrapper-rpath"
+  - "1.4 -wrapper-rpath"
+  - "1.5 -wrapper-rpath"
+  - "1.6 -wrapper-rpath"
+  - "1.7 -wrapper-rpath"
+  - "1.8"
+  - "2.0.0"
+  - "2.1.0"
+  - "3.0.0"
+  - "3.1.0"
+  - "4.0.0"
+  - "4.1.0"
+  - "1.10.7"
+
+ # Extra commands to run to compile examples.
+ # Assumes package bin on the path, relative paths to install directory
+ # run:
+ #  - mpicc share/openmpi/src/examples/ring_c.c -o share/openmpi/src/examples/ring_c
+
+ # Binaries to run tests with across versions (relative to install directory)
+ # bins:
+ #  - share/openmpi/src/examples/ring_c
+
+ headers:
+  - include
+ libs:
+  - lib/libmpi.so
+
+test:
+  # Always use the build cache instead of prebuilt container?
+  build_cache: false

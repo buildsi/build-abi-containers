@@ -61,7 +61,7 @@ config_schema = {
             "properties": {
                 "build_cache": {"type": "boolean"},
             },
-        }
+        },
     },
 }
 
@@ -92,7 +92,7 @@ class Tester:
         jsonschema.validate(self.config, schema=tester_schema)
 
     def __getattr__(self, key):
-        return self.config['tester'].get(key)
+        return self.config["tester"].get(key)
 
 
 class TestPackage:
@@ -102,7 +102,7 @@ class TestPackage:
         jsonschema.validate(self.config, schema=config_schema)
 
     def __getattr__(self, key):
-        return self.config['package'].get(key) or self.config.get(key)
+        return self.config["package"].get(key) or self.config.get(key)
 
 
 class TestSetup:
@@ -202,7 +202,7 @@ class TestSetup:
         # Create the package to test
         package_file = self.get_package_config(package)
         package = TestPackage(package_file)
-        
+
         # Return a list of containers build to test later
         containers = []
 
@@ -210,7 +210,9 @@ class TestSetup:
         for tester in self.testers:
 
             # Get the tester build template
-            template = self.get_tester_template(tester, package.test['build_cache'] or use_cache, prebuilt)
+            template = self.get_tester_template(
+                tester, package.test["build_cache"] or use_cache, prebuilt
+            )
             tester = Tester(self.get_tester_config(tester))
 
             # Right now one container has all versions
@@ -225,6 +227,7 @@ class TestSetup:
             runscript = self.get_tester_runscript(tester).render(
                 package=package, tester=tester
             )
+
             out = template.render(
                 package=package, tester=tester, bins=bins, cache_only=cache_only
             )
