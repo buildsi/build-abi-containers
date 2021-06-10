@@ -25,32 +25,36 @@ jobs:
 
     name: Check ${{ matrix.changed_file }}
     steps:
+      - name: Continue if Test
+        run: |
+          # Continue if we have a changed tests file
+          if [[ "${{ matrix.changed_file }}" = tests* ]]; then
+            echo "::set-output name=continue::true"
+            echo "::set-output name=container_test::true"
+          fi          
+          # Continue if we have a changed tester template
+          if [[ "${{ matrix.changed_file }}" = docker* ]]; then
+            echo "::set-output name=continue::true"
+            echo "::set-output name=container_base::true"
+          fi          
+
       - name: Checkout
+        if: ${{ env.continue == 'true' }}
         uses: actions/checkout@v2        
 
       - name: Make Space For Build
+        if: ${{ env.continue == 'true' }}
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
 
       - name: Build and Deploy Test Containers
+        if: ${{ env.container_test == 'true' }}
         run: |
             echo ${{ secrets.DOCKER_PASSWORD }} | docker login quay.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
             echo "${{ matrix.changed_file }}"
-
-#            pip install -r requirements.txt
-#            root="${PWD}"
-#            cd tests
-#            for testyaml in $(git diff --name-only origin/main HEAD .); do
-#                relpath=$(basename ${testyaml})
-#                if [ ! -f "${relpath}" ]; then                
-#                    printf "${relpath} does not exist.\n"
-#                    continue
-#                fi
-#                if [ "$relpath" == "${{ matrix.test }}" ]; then                
-#                    printf "Found changed test file ${testyaml}\n"
-#                    python ../build-si-containers build --root "${root}" "${relpath}"
-#                    python ../build-si-containers deploy --root "${root}" "${relpath}"
-#                fi
-#            done
-#            cd ../
+            pip install -r requirements.txt
+            relpath=$(basename ${{ matrix.changed_file }})
+            printf "Found changed test file ${{ matrix.changed_file }}\n"
+            python build-si-containers build "${relpath}"
+            python ../build-si-containers deploy --root "${root}" "${relpath}"
