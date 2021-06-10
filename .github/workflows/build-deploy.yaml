@@ -11,6 +11,7 @@ on:
 
 jobs:
   changes:
+    name: "Changed Files"
     runs-on: ubuntu-latest
     outputs:
       changed_file: ${{ steps.files.outputs.added_modified }}
@@ -74,14 +75,14 @@ jobs:
           name: "results-${{ env.package }}"
           path: ./results
 
-      - name: Login and deploy test container
+      - name: Login and Deploy Test Container
         if: (github.event_name != 'pull_request' && env.container_test == 'true')
         run: |
             docker images
             echo ${{ secrets.DOCKER_PASSWORD }} | docker login quay.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
             python build-si-containers deploy "${{ env.package }}"
 
-      - name: Build and Deploy Base Container
+      - name: Build Base Container
         if: ${{ env.container_base == 'true' }}
         env:
           # registry organization
@@ -106,7 +107,7 @@ jobs:
             done
             echo "container=${{ env.registry }}/${tester}" >> $GITHUB_ENV
 
-      - name: Login and deploy base container
+      - name: Login and Deploy Base Container
         if: (github.event_name != 'pull_request' && env.container_base == 'true')
         run: |
             docker images

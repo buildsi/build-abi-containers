@@ -93,7 +93,7 @@ def main():
             # Only run if the named library exists
             lib2 = "%s/{{ lib }}" % path2
             if not os.path.exists(lib2):
-                print("Skipping %s, does not exist.")
+                print("Skipping %s, does not exist." % lib2)
                 continue
 
             run("time -p abidiff {% for include in package.headers %} --hd1 %s/{{ include }} --hd2 %s/{{ include }} {% endfor %} %s %s > %s > %s.log" %({% for include in package.headers %}path, path2, {% endfor %}lib, lib2, out_file, out_file))
