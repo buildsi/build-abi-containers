@@ -59,7 +59,7 @@ jobs:
             relpath=$(basename ${{ matrix.changed_file }})
             printf "Found changed test file ${{ matrix.changed_file }}\n"
             python build-si-containers build "${relpath}"
-            python ../build-si-containers deploy --root "${root}" "${relpath}"
+            # python build-si-containers deploy "${relpath}"
 
       - name: Build and Deploy Base Container
         if: ${{ env.container_base == 'true' }}
@@ -70,14 +70,15 @@ jobs:
         run: |
             tester_dir=$(dirname ${{ matrix.changed_file }})
             tester=$(basename ${tester_dir})
-            cd $tester_dir
             dockerfile=$(basename ${{ matrix.changed_file }})            
             printf "Found changed Dockerfile ${dockerfile}\n"
+            printf "Looking for testers/$tester/versions"
             if [ ! -f "testers/$tester/versions" ]; then
               printf "versions text file missing for $dockerfile."
               exit 1
             fi
             versions=$(cat $tester_dir/versions)
+            cd $tester_dir           
             for version in ${versions}; do      
                container=${{ env.registry }}/${tester}:${version}
                printf "Building ${dockerfile} with version ${version} to container ${container}\n"  
