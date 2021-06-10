@@ -1,7 +1,11 @@
 name: "Run Tests on Changes"
 
 on:
-  pull_request:
+  # Always test on pull request
+  pull_request: []
+
+  # Deploy on merge to main
+  push:
     branches:
       - main
  
