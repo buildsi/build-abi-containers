@@ -1,0 +1,24 @@
+package:
+ name: openmpi
+ versions:
+  - "1.2.11"
+  - "1.2.8"
+  - "1.2.3"
+
+ # Extra commands to run to compile examples.
+ # Assumes package bin on the path, relative paths to install directory
+ # run:
+ #  - mpicc share/openmpi/src/examples/ring_c.c -o share/openmpi/src/examples/ring_c
+
+ # Binaries to run tests with across versions (relative to install directory)
+ # bins:
+ #  - share/openmpi/src/examples/ring_c
+
+ headers:
+  - include
+ libs:
+  - lib/libz.so
+
+test:
+  # Always use the build cache instead of prebuilt container?
+  build_cache: false
