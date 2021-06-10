@@ -413,30 +413,38 @@ libraries. Here is what that looks like:
 package:
  name: mpich
  versions:
-  - "3.2.1"
-  - "3.3"
-  - "3.3.2"
   - "3.4.1"
-  - "2-1.5"
+  - "3.3.2"
+  - "3.1.4 device=ch3 netmod=tcp"
+  - "3.0.4 device=ch3 netmod=tcp"
  headers:
   - include
  libs:
-  - libs/libmpich.so
+  - lib/libmpich.so
+
+ # Extra commands to run to compile examples.
+ # Assumes package bin on the path, relative paths to install directory
+ run:
+   - mpicc -c share/mpich/src/examples/cpi.c -o share/mpich/src/examples/cpi
+
+ # Binaries to run tests with across versions (relative to install directory)
+ bins:
+   - share/mpich/src/examples/cpi
+
+test:
+  # Always use the build cache instead of prebuilt container?
+  build_cache: false
 ```
 
-Currently, we are developing with matching autamus containers (e.g., asking
-to test mpich will use [this container](https://github.com/orgs/autamus/packages/container/package/buildsi-mpich)) 
-but once we have a build cache to quickly install from, it should be possible to write any number of packages in
-a file. For now, each of these packages (and the versions requested) will need to be available
-on the autamus registry, which means that:
+For now, we are building from cache, because we do not have a build cache
+that is well populated, nor do we have a global debug (this is problematic regardless).
+We will need to add global debug to add to these builds for most of the results to be
+meaningful. Overall, this means that:
 
  - we need to be able to build with debug symbols globally
  - strip needs to be set to false
- - autamus needs to be able to build older versions of libraries on request.
  
-We could install with spack natively, but we will save a lot of time using
-pre-built layers. Note that the scripts to make this happen aren't developed
-yet - we just have the base containers.
+If we can use build caches, the builds will be much faster than they currently are.
 
  
 ### Reproduce a Test
@@ -526,6 +534,7 @@ or force a rebuild.
 ```
 
 It's up to you!
+
  
 ### Bolo's Notes
 

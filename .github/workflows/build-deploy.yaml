@@ -63,7 +63,7 @@ jobs:
             pip install -r requirements.txt
             relpath=$(basename ${{ matrix.changed_file }})
             printf "Found changed test file ${{ matrix.changed_file }}\n"
-            python build-si-containers test "${{ env.package }}"
+            python build-si-containers test "${relpath}"
             echo "package=${relpath}" >> $GITHUB_ENV
             tree ./results
 
