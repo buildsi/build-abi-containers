@@ -30,7 +30,7 @@ jobs:
           # Continue if we have a changed tests file
           if [[ "${{ matrix.changed_file }}" = tests* ]]; then
             echo "keepgoing=true" >> $GITHUB_ENV
-            echo "container=true" >> $GITHUB_ENV
+            echo "container_test=true" >> $GITHUB_ENV
           fi          
           # Continue if we have a changed tester template
           if [[ "${{ matrix.changed_file }}" = docker* ]]; then
