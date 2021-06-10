@@ -7,11 +7,11 @@ on:
 jobs:
   changes:
     runs-on: ubuntu-latest
-
-  - id: files
-    uses: jitterbit/get-changed-files@b17fbb00bdc0c0f63fcf166580804b4d2cdc2a42
-    with:
-      format: 'json'
+    steps:
+      - id: files
+        uses: jitterbit/get-changed-files@b17fbb00bdc0c0f63fcf166580804b4d2cdc2a42
+        with:
+          format: 'json'
   
   deploy-test-containers:
     needs:
