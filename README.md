@@ -47,7 +47,7 @@ These commands will be explained in detail in these docs.
 
 ## Overview of Steps
 
-1. We start with base containers that have "testers" such as libabigail. Their recipe files are included in [docker](docker) and the GitHub workflow [build-deploy.yaml](.github/workflows/deploy-containers.yaml) and [deploy-containers.yaml](.github/workflows/deploy-containers.yaml). When any of these files change, the bases are built in a pull request (PR), and when the PR is merged the containers are deployed. For example, [here](https://quay.io/repository/buildsi/libabigail?tab=tags) is the libabigail testing base on Quay.io. A tester like libabigail has it's own entrypoint and runscript where we can express how to write tests. For example, libabigail is going to run abidw, abidiff, etc.
+1. We start with base containers that have "testers" such as libabigail. Their recipe files are included in [docker](docker) and the GitHub workflow [build-deploy.yaml](.github/workflows/build-deploy.yaml). When any of these Dockerfiles change, the bases are built in a pull request (PR), and when the PR is merged the containers are deployed. For example, [here](https://quay.io/repository/buildsi/libabigail?tab=tags) is the libabigail testing base on Quay.io. A tester like libabigail has it's own entrypoint and runscript where we can express how to write tests. For example, libabigail is going to run abidw, abidiff, etc.
 2. We define packages to test in [tests](tests) as yaml files. The yaml files include things like header files, versions, and libraries, and these variables are handed to the testing template. This means the resulting container of the libabigail base + the package (e.g., mpich) will have a custom runscript to run the libabigail commands on the various libaries, etc.
 3. The results are saved in the container at /results, in a tree that will ensure that different tester and package bases have a unique namespace. The tests are run in a GitHub workflow and currently saved as artifacts. (E.g., see [this run](https://github.com/spack/build-abi-containers/actions/runs/882797815)).
 
@@ -55,23 +55,23 @@ It's recommended to read the [usage section](#usage) to get more detail on the a
 
 ## Questions for Discussion / Remaining to do
 
-1. Currently, we are using custom autamus builds (e.g., a container with multiple mpich installed) as the test base. 
-Ideally we can generate these quickly on the fly when we can install from a build cache.
-2. abicompat cannot be run until we have examples included, this is still being added.
-3. We need to derive a means to compare results across different testers. E.g., libabigail vs. Smeagle (when Smeagle has tests).
-4. Where should we put these results? I was thinking of running a workflow nightly to get artifacts from the GitHub API and put them where we want them. Where do we want them?
+1. We need to derive a means to compare results across different testers. E.g., libabigail vs. Smeagle (when Smeagle has tests).
+2. Where should we put these results? I was thinking of running a workflow nightly to get artifacts from the GitHub API and put them where we want them. Where do we want them?
 
 ## Organization
 
  - [docker](docker): includes `Dockerfile`s, one per testing base, that will be deployed to [quay.io/buildsi](https://quay.io/organization/buildsi).
- - [tests](tests): includes yaml config files that are matched to a spack package to test (or more generally an autamus container). The configs are validated when loaded.
+ - [tests](tests): includes yaml config files that are matched to a spack package to test. The configs are validated when loaded.
  - [testers](testers): is a folder of tester subdirectories, which should be named for the tester (e.g., libabigail). No other files should be put in this folder root.
- - [templates](templates): includes both container build templates, and tester runtime templates. The container build templates.
+ - [templates](templates): includes both container build templates, and tester runtime templates. The container build defaults to Dockerfile.default to build from spack source, and when we have a buildcache (ideally with debug) we can change that to Dockerfile.buildcache (the `--use-cache` argument described next.)
 
 
 ## Usage
 
-The client exposes two commands - to build and run tests:
+The client exposes two commands - to build and run tests. You can see these commands
+in use in the [GitHub workflow](.github/workflows/build-deploy.yaml) or continue reading
+for details.
+
 
 ```bash
 usage: build-si-containers [-h] {test,build} ...
@@ -387,13 +387,13 @@ at the root of the container.
 
 #### 6. Understand how the tester bases are built automatically
 
-In each of [deploy-containers.yaml](.github/workflows/deploy-containers.yaml) and [build-containers.yaml](.github/workflows/build-containers.yaml) we discover a list of testers by way of listing subfolders in the [testers](testers) directory.
-Then, for each changed file (according to git history), we trigger a new build. Versions
+In [build-deploy.yaml](.github/workflows/build-deploy.yaml) we discover a list of testers by 
+way of looking for changed files in the [testers](testers) directory.
+Then, for each changed file, we trigger a new build. Versions
 for one or more of these builds are derived from the `versions` text file we created earlier.
-And that's it! When a file is changed in one of these folders, it will be built with CI via `build-containers.yaml`
-and then deployed on merge to master with `deploy-containers.yaml`
+And that's it! When a file is changed in one of these folders, it will be built during the
+pull request process, and deployed on merge to main.
 
-**Note: You should always merge only one clean commit into master, so take care to rebase in PRs and write good messages!**
 
 These are the bases we add packages on top of, and then run tests.
 

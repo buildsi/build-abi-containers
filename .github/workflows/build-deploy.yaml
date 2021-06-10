@@ -55,23 +55,17 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
 
-      - name: Build and Deploy Test Containers
+      - name: Build and Run Test Container
         if: ${{ env.container_test == 'true' }}
         run: |
+            mkdir -p results
             echo "${{ matrix.changed_file }}"
             pip install -r requirements.txt
             relpath=$(basename ${{ matrix.changed_file }})
             printf "Found changed test file ${{ matrix.changed_file }}\n"
-            python build-si-containers build "${relpath}"
-            echo "package=${relpath}" >> $GITHUB_ENV
-
-      - name: Login and deploy test container
-        if: (github.event_name != 'pull_request' && env.container_test == 'true')
-        run: |
-            docker images
-            echo ${{ secrets.DOCKER_PASSWORD }} | docker login quay.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
             python build-si-containers test "${{ env.package }}"
-            python build-si-containers deploy "${{ env.package }}"
+            echo "package=${relpath}" >> $GITHUB_ENV
+            tree ./results
 
       - name: Save Result Artifact
         uses: actions/upload-artifact@v2
@@ -79,6 +73,13 @@ jobs:
         with:
           name: "results-${{ env.package }}"
           path: ./results
+
+      - name: Login and deploy test container
+        if: (github.event_name != 'pull_request' && env.container_test == 'true')
+        run: |
+            docker images
+            echo ${{ secrets.DOCKER_PASSWORD }} | docker login quay.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+            python build-si-containers deploy "${{ env.package }}"
 
       - name: Build and Deploy Base Container
         if: ${{ env.container_base == 'true' }}
@@ -96,7 +97,7 @@ jobs:
               printf "versions text file missing for $dockerfile."
               exit 1
             fi
-            versions=$(cat $testers/$tester/versions)
+            versions=$(cat testers/$tester/versions)
             cd $tester_dir           
             for version in ${versions}; do      
                container=${{ env.registry }}/${tester}:${version}
