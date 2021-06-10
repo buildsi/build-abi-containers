@@ -8,6 +8,8 @@ evaluating ABI, and to run tests for ABI in the CI. The approach we take is the 
  - Build a testing container on top of a base container, with multiple versions of a package defined in any given [test](tests)
  - Run the entrypoint of the container with a local volume to run tests and generate output.
  - Tester container bases along with the tester+test are deployed automatically to reproduce running the tests. Testers and bases are built and deployer when a changed tester Dockerfile or file in [tests](tests) is pushed to main.
+ - Artifact results are discovered and saved to [build-abi-containers-reuslts](https://github.com/buildsi/build-abi-containers-results).
+
 
 ## Table of Contents
 
@@ -49,14 +51,14 @@ These commands will be explained in detail in these docs.
 
 1. We start with base containers that have "testers" such as libabigail. Their recipe files are included in [docker](docker) and the GitHub workflow [build-deploy.yaml](.github/workflows/build-deploy.yaml). When any of these Dockerfiles change, the bases are built in a pull request (PR), and when the PR is merged the containers are deployed. For example, [here](https://quay.io/repository/buildsi/libabigail?tab=tags) is the libabigail testing base on Quay.io. A tester like libabigail has it's own entrypoint and runscript where we can express how to write tests. For example, libabigail is going to run abidw, abidiff, etc.
 2. We define packages to test in [tests](tests) as yaml files. The yaml files include things like header files, versions, and libraries, and these variables are handed to the testing template. This means the resulting container of the libabigail base + the package (e.g., mpich) will have a custom runscript to run the libabigail commands on the various libaries, etc.
-3. The results are saved in the container at /results, in a tree that will ensure that different tester and package bases have a unique namespace. The tests are run in a GitHub workflow and currently saved as artifacts. (E.g., see [this run](https://github.com/spack/build-abi-containers/actions/runs/882797815)).
+3. The results are saved in the container at /results, in a tree that will ensure that different tester and package bases have a unique namespace. The tests are run in a GitHub workflow and currently saved as artifacts. (E.g., see [this run](https://github.com/spack/build-abi-containers/actions/runs/882797815)). The artifacts are discovered and saved in [build-abi-containers-results](https://github.com/buildsi/build-abi-containers-results).
 
 It's recommended to read the [usage section](#usage) to get more detail on the above.
 
 ## Questions for Discussion / Remaining to do
 
-1. We need to derive a means to compare results across different testers. E.g., libabigail vs. Smeagle (when Smeagle has tests).
-2. Where should we put these results? I was thinking of running a workflow nightly to get artifacts from the GitHub API and put them where we want them. Where do we want them?
+1. Smeagle needs to be finished and added as a tester.
+1. We need to derive a means to compare results across different testers. E.g., libabigail vs. Smeagle.
 
 ## Organization
 
