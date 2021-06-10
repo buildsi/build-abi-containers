@@ -96,7 +96,7 @@ jobs:
               printf "versions text file missing for $dockerfile."
               exit 1
             fi
-            versions=$(cat $tester_dir/versions)
+            versions=$(cat $testers/$tester/versions)
             cd $tester_dir           
             for version in ${versions}; do      
                container=${{ env.registry }}/${tester}:${version}
