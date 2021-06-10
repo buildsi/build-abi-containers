@@ -68,6 +68,13 @@ jobs:
             echo "package=${relpath}" >> $GITHUB_ENV
             tree ./results
 
+      - name: Save Test Artifact
+        uses: actions/upload-artifact@v2
+        if: (github.event_name == 'pull_request' && env.container_test == 'true')
+        with:
+          name: "test-results-${{ env.package }}"
+          path: ./results
+
       - name: Save Result Artifact
         uses: actions/upload-artifact@v2
         if: (github.event_name != 'pull_request' && env.container_test == 'true')
