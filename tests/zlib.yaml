@@ -1,5 +1,5 @@
 package:
- name: openmpi
+ name: zlib
  versions:
   - "1.2.11"
   - "1.2.8"

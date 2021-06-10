@@ -29,21 +29,21 @@ jobs:
         run: |
           # Continue if we have a changed tests file
           if [[ "${{ matrix.changed_file }}" = tests* ]]; then
-            echo "::set-output name=continue::true"
-            echo "::set-output name=container_test::true"
+            echo "keepgoing=true" >> $GITHUB_ENV
+            echo "container=true" >> $GITHUB_ENV
           fi          
           # Continue if we have a changed tester template
           if [[ "${{ matrix.changed_file }}" = docker* ]]; then
-            echo "::set-output name=continue::true"
-            echo "::set-output name=container_base::true"
+            echo "keepgoing=true" >> $GITHUB_ENV
+            echo "container_base=true" >> $GITHUB_ENV
           fi          
 
       - name: Checkout
-        if: ${{ env.continue == 'true' }}
+        if: ${{ env.keepgoing == 'true' }}
         uses: actions/checkout@v2        
 
       - name: Make Space For Build
-        if: ${{ env.continue == 'true' }}
+        if: ${{ env.keepgoing == 'true' }}
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
@@ -58,3 +58,32 @@ jobs:
             printf "Found changed test file ${{ matrix.changed_file }}\n"
             python build-si-containers build "${relpath}"
             python ../build-si-containers deploy --root "${root}" "${relpath}"
+
+      - name: Build and Deploy Base Container
+        if: ${{ env.container_base == 'true' }}
+        env:
+          # registry organization
+          registry: quay.io/buildsi
+
+        run: |
+            tester_dir=$(dirname ${{ matrix.changed_file }})
+            tester=$(basename ${tester_dir})
+            cd $tester_dir
+            dockerfile=$(basename ${{ matrix.changed_file }})            
+            printf "Found changed Dockerfile ${dockerfile}\n"
+            if [ ! -f "$tester_dir/versions" ]; then
+              printf "versions text file missing for $dockerfile."
+              exit 1
+            fi
+            versions=$(cat $tester_dir/versions)
+            for version in ${versions}; do      
+               container=${{ env.registry }}/${tester}:${version}
+               printf "Building ${dockerfile} with version ${version} to container ${container}\n"  
+               docker build -f ${dockerfile} --build-arg LIBRARY_VERSION=${version} -t ${container} .
+            done
+
+            # Push updated tags
+            echo ${{ secrets.DOCKER_PASSWORD }} | docker login quay.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+            docker images            
+            printf "docker push ${{ env.registry }}/${tester} --all-tags\n"
+            # docker push ${{ env.registry }}/${tester} --all-tags
