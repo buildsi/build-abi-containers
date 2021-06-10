@@ -1,0 +1,124 @@
+name: Deploy test containers
+
+on:
+  # Always test on pull request
+  pull_request: []
+
+  # Deploy on merge to main
+  push:
+    branches:
+      - main
+
+jobs:
+  changes:
+    name: "Changed Files"
+    runs-on: ubuntu-latest
+    outputs:
+      changed_file: ${{ steps.files.outputs.added_modified }}
+    steps:
+      - id: files
+        uses: jitterbit/get-changed-files@b17fbb00bdc0c0f63fcf166580804b4d2cdc2a42
+        with:
+          format: 'json'
+  
+  deploy-test-containers:
+    needs:
+      - changes
+    runs-on: ubuntu-latest
+    strategy:
+      # Keep going on other deployments if anything bloops
+      fail-fast: false
+      matrix:
+        changed_file: ${{ fromJson(needs.changes.outputs.changed_file) }}
+
+    name: Check ${{ matrix.changed_file }}
+    steps:
+      - name: Continue if Test
+        run: |
+          # Continue if we have a changed tests file
+          if [[ "${{ matrix.changed_file }}" = tests* ]]; then
+            echo "keepgoing=true" >> $GITHUB_ENV
+            echo "container_test=true" >> $GITHUB_ENV
+          fi          
+          # Continue if we have a changed tester template
+          if [[ "${{ matrix.changed_file }}" = docker* ]]; then
+            echo "keepgoing=true" >> $GITHUB_ENV
+            echo "container_base=true" >> $GITHUB_ENV
+          fi          
+
+      - name: Checkout
+        if: ${{ env.keepgoing == 'true' }}
+        uses: actions/checkout@v2        
+
+      - name: Make Space For Build
+        if: ${{ env.keepgoing == 'true' }}
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+
+      - name: Build and Run Test Container
+        if: ${{ env.container_test == 'true' }}
+        run: |
+            mkdir -p results
+            echo "${{ matrix.changed_file }}"
+            pip install -r requirements.txt
+            relpath=$(basename ${{ matrix.changed_file }})
+            printf "Found changed test file ${{ matrix.changed_file }}\n"
+            python build-si-containers test "${relpath}"
+            echo "package=${relpath}" >> $GITHUB_ENV
+            tree ./results
+
+      - name: Save Test Artifact
+        uses: actions/upload-artifact@v2
+        if: (github.event_name == 'pull_request' && env.container_test == 'true')
+        with:
+          name: "test-results-${{ env.package }}"
+          path: ./results
+
+      - name: Save Result Artifact
+        uses: actions/upload-artifact@v2
+        if: (github.event_name != 'pull_request' && env.container_test == 'true')
+        with:
+          name: "results-${{ env.package }}"
+          path: ./results
+
+      - name: Login and Deploy Test Container
+        if: (github.event_name != 'pull_request' && env.container_test == 'true')
+        run: |
+            docker images
+            echo ${{ secrets.DOCKER_PASSWORD }} | docker login quay.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+            python build-si-containers deploy "${{ env.package }}"
+
+      - name: Build Base Container
+        if: ${{ env.container_base == 'true' }}
+        env:
+          # registry organization
+          registry: quay.io/buildsi
+
+        run: |
+            tester_dir=$(dirname ${{ matrix.changed_file }})
+            tester=$(basename ${tester_dir})
+            dockerfile=$(basename ${{ matrix.changed_file }})            
+            printf "Found changed Dockerfile ${dockerfile}\n"
+            printf "Looking for testers/$tester/versions"
+            if [ ! -f "testers/$tester/versions" ]; then
+              printf "versions text file missing for $dockerfile."
+              exit 1
+            fi
+            versions=$(cat testers/$tester/versions)
+            cd $tester_dir           
+            for version in ${versions}; do      
+               container=${{ env.registry }}/${tester}:${version}
+               printf "Building ${dockerfile} with version ${version} to container ${container}\n"  
+               docker build -f ${dockerfile} --build-arg LIBRARY_VERSION=${version} -t ${container} .
+            done
+            echo "container=${{ env.registry }}/${tester}" >> $GITHUB_ENV
+
+      - name: Login and Deploy Base Container
+        if: (github.event_name != 'pull_request' && env.container_base == 'true')
+        run: |
+            docker images
+            echo ${{ secrets.DOCKER_PASSWORD }} | docker login quay.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+            docker images            
+            printf "docker push ${{ env.container }} --all-tags\n"
+            docker push ${{ env.container }} --all-tags

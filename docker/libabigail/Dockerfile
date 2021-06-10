@@ -32,3 +32,4 @@ RUN ldconfig && \
     ../configure --prefix=/usr/local  && \
     make all install && \
     ldconfig
+
