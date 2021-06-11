@@ -1,0 +1,33 @@
+package:
+ name: python
+ versions:
+  - "2.7.8"
+  - "2.7.9"
+  - "3.9.0"
+  - "3.8.0"
+  - "3.7.0"
+  - "3.6.0"
+  - "3.5.0"
+
+ # Extra commands to run to compile examples.
+ # Assumes package bin on the path, relative paths to install directory
+ # We want to be able to compare differently named libpython libraries
+ # run:
+ # - cp lib/libpython3.so lib/libpython.so || echo "libpython3 is not present."
+ # - cp lib/libpython2.so lib/libpython.so || echo "libpython2 is not present."
+
+ # Binaries to run tests with across versions (relative to install directory)
+ # bins:
+ #  - share/openmpi/src/examples/ring_c
+
+ headers:
+  - include
+
+ # TODO make a libs regex, should be used to dynamically figure out libs
+ libregex:
+  - lib/libpython*.so
+
+test:
+  # Always use the build cache instead of prebuilt container?
+  build_cache: false
+
