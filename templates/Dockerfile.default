@@ -7,7 +7,7 @@ RUN echo "packages:" > packages.yaml &&\
 
 RUN apt-get update && apt-get install -y curl python3-botocore python3-boto3 && \
     spack config add -f "packages.yaml" && \
-    {% for version in package.versions %}spack install --source {% if cache_only %}--cache-only{% endif %} {{ package.name }}@{{ version }} || echo "There was an issue installing {{ package.name }}@{{ version }}" && \{% endfor %}
+    {% for version in package.versions %}spack install --source {% if cache_only %}--cache-only{% endif %} --deprecated {{ package.name }}@{{ version }} && \{% endfor %}
     printf "Finished installation attempts\n"
 
 FROM quay.io/buildsi/{{ tester.name }}:{{ tester.version }}

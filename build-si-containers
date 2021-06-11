@@ -51,6 +51,7 @@ config_schema = {
                 "versions": {"type": "array", "items": {"type": "string"}},
                 "headers": {"type": "array", "items": {"type": "string"}},
                 "libs": {"type": "array", "items": {"type": "string"}},
+                "libregex": {"type": "array", "items": {"type": "string"}},
                 "bins": {"type": "array", "items": {"type": "string"}},
                 "run": {"type": "array", "items": {"type": "string"}},
             },
