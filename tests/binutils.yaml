@@ -8,7 +8,6 @@ package:
   - "2.28"
   - "2.26"
   - "2.24"
-  - "2.20.1"
 
  # Extra commands to run to compile examples.
  # Assumes package bin on the path, relative paths to install directory
