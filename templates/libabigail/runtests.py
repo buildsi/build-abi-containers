@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from glob import glob
 import subprocess
 import os
 import sys
@@ -59,59 +60,71 @@ def main():
         os.chdir(path)
         # Add package bin to the path and run extra commands
         os.environ["PATH"] = "%s/bin:%s" % (os.getcwd(), envpath)
-        {% for run in package.run %}run("{{ run }}")
+        {% for run in package.run %}run('{{ run }}')
         {% endfor %}
         os.chdir(here){% endif %}
 
     # spec names -> paths
     for spec, path in lookup.items():
         spec, spec_version = spec.split("@", 1)
-        {% for lib in package.libs %}print("Testing {{ lib }} with abidw")
-        out_dir = "/results/{{ tester.name }}/{{ tester.version }}/{{ package.name }}/%s" % spec_version
+        
+        # Create a list of libs to test
+        libs = [{% if package.libs %}{% for lib in package.libs %}"{{ lib }}"{% if loop.last %}{% else %},{% endif %}{% endfor %}{% endif %}]
 
-        # Assumes path for spack install
-        libdir = os.path.dirname("{{ lib }}")
-        result_dir = os.path.join(out_dir, libdir)
-        if not os.path.exists(result_dir):
-            os.makedirs(result_dir)
-
-        # Don't run if the library does not exist
-        lib = "%s/{{ lib }}" % path
-        if not os.path.exists(lib):
-            print("Skipping %s, does not exist." % lib)
-            continue
-                    
-        # We don't need output here, lazy way to do it
-        run("time -p abidw {% for include in package.headers %} --hd %s/{{ include }} {% endfor %} %s --out-file %s/{{ lib }}.xml > %s/{{ lib }}.xml.log 2>&1" % ({% for include in package.headers %}path, {% endfor %}lib, out_dir, out_dir))
-
-        for spec2, path2 in lookup.items():
-            spec2, spec2_version = spec2.split("@", 1)
-            print("Comparing %s versions %s and %s {{ lib }} with abidiff" %(spec, spec_version, spec2_version))
-            out_file = "/results/{{ tester.name }}/{{ tester.version }}/{{ package.name }}/diff/%s-%s" % (spec_version, spec2_version)
-            create_outdir(out_file)
-
-            # Only run if the named library exists
-            lib2 = "%s/{{ lib }}" % path2
-            if not os.path.exists(lib2):
-                print("Skipping %s, does not exist." % lib2)
-                continue
-
-            run("time -p abidiff {% for include in package.headers %} --hd1 %s/{{ include }} --hd2 %s/{{ include }} {% endfor %} %s %s > %s > %s.log" %({% for include in package.headers %}path, path2, {% endfor %}lib, lib2, out_file, out_file))
-
-            # If we have bins to run abicompat with
-            {% if package.bins %}{% for binary in package.bins %}
-            bin1 = os.path.join(path, "{{ binary }}") 
-
-            # We can only run abicompat if it exists
-            if os.path.exists(bin1):
-
-                out_file = "/results/{{ tester.name }}/{{ tester.version }}/{{ package.name }}/compat/%s-%s" % (spec_version, spec2_version)
-                create_outdir(out_file)
-                
-                # Important! This requires debug sumbols, so we allow to fail since most don't have
-                run("time -p abicompat %s %s %s > %s > %s.log" % (bin1, lib, lib2, out_file, out_file))
-                {% endfor %}{% endif %}
+        # Add any libregex
+        {% if package.libregex %}os.chdir(path)
+        {% for libregex in package.libregex %}libs += glob("{{ libregex }}")
         {% endfor %}
+        os.chdir(here){% endif %}
+
+        # Loop through all libs
+        for libname in libs:
+
+            print("Testing %s with abidw" % libname)
+            out_dir = "/results/{{ tester.name }}/{{ tester.version }}/{{ package.name }}/%s" % spec_version
+
+            # Assumes path for spack install
+            libdir = os.path.dirname(libname)
+            result_dir = os.path.join(out_dir, libdir)
+            if not os.path.exists(result_dir):
+                os.makedirs(result_dir)
+
+            # Don't run if the library does not exist
+            lib = "%s/%s" % (path, libname)
+            if not os.path.exists(lib):
+                print("Skipping %s, does not exist." % lib)
+                continue
+                    
+            # We don't need output here, lazy way to do it
+            run("time -p abidw {% for include in package.headers %} --hd %s/{{ include }} {% endfor %} %s --out-file %s/%s.xml > %s/%s.xml.log 2>&1" % ({% for include in package.headers %}path, {% endfor %}lib, out_dir, libname, out_dir, libname))
+
+            for spec2, path2 in lookup.items():
+                spec2, spec2_version = spec2.split("@", 1)
+                print("Comparing %s versions %s and %s %s with abidiff" %(spec, spec_version, spec2_version, libname))
+                out_file = "/results/{{ tester.name }}/{{ tester.version }}/{{ package.name }}/diff/%s-%s" % (spec_version, spec2_version)
+                create_outdir(out_file)
+
+                # Only run if the named library exists
+                lib2 = "%s/%s" % (path2, libname)
+                if not os.path.exists(lib2):
+                    print("Skipping %s, does not exist." % lib2)
+                    continue
+
+                run("time -p abidiff {% for include in package.headers %} --hd1 %s/{{ include }} --hd2 %s/{{ include }} {% endfor %} %s %s > %s > %s.log" %({% for include in package.headers %}path, path2, {% endfor %}lib, lib2, out_file, out_file))
+
+                # If we have bins to run abicompat with
+                {% if package.bins %}{% for binary in package.bins %}
+                bin1 = os.path.join(path, "{{ binary }}") 
+
+                # We can only run abicompat if it exists
+                if os.path.exists(bin1):
+
+                    out_file = "/results/{{ tester.name }}/{{ tester.version }}/{{ package.name }}/compat/%s-%s" % (spec_version, spec2_version)
+                    create_outdir(out_file)
+                
+                    # Important! This requires debug sumbols, so we allow to fail since most don't have
+                    run("time -p abicompat %s %s %s > %s > %s.log" % (bin1, lib, lib2, out_file, out_file))
+                    {% endfor %}{% endif %}
 
 
 if __name__ == "__main__":
