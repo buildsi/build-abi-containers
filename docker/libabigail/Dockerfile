@@ -31,5 +31,6 @@ RUN ldconfig && \
     cd build && \
     ../configure --prefix=/usr/local  && \
     make all install && \
-    ldconfig
+    ldconfig && \
+    pip install pytest
 

@@ -1,24 +1,8 @@
-package:
- name: mpich
- versions:
-  - "3.4.1"
-  - "3.3.2"
-  - "3.1.4 device=ch3 netmod=tcp"
-  - "3.0.4 device=ch3 netmod=tcp"
- headers:
-  - include
- libs:
-  - lib/libmpich.so
+packages:
+ # no versions specified implies all
+ - name: mpich
 
- # Extra commands to run to compile examples.
- # Assumes package bin on the path, relative paths to install directory
- run:
-   - mpicc -c share/mpich/src/examples/cpi.c -o share/mpich/src/examples/cpi
-
- # Binaries to run tests with across versions (relative to install directory)
- bins:
-   - share/mpich/src/examples/cpi
-
-test:
-  # Always use the build cache instead of prebuilt container?
-  build_cache: false
+# This can be single-test or pairwise-test
+# pair-wise test implies we require 2 packages 
+experiment:
+  name: single-test

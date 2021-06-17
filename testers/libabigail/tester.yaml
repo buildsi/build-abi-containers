@@ -2,4 +2,6 @@ tester:
   name: libabigail
   version: 1.8.2
   runscript: runtests.py
-  entrypoint: /usr/bin/python3
+  entrypoint: pytest
+  args:
+   - "-xs"

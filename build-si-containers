@@ -24,6 +24,7 @@ import time
 import shutil
 import yaml
 import sys
+from abc import ABC
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -37,15 +38,21 @@ env = Environment(
     autoescape=select_autoescape(["html"]), loader=FileSystemLoader(templates)
 )
 
-config_schema = {
+package_schema = {
     "$schema": "http://json-schema.org/schema#",
     "title": "build-abi-containers package schema",
     "type": "object",
     "additionalProperties": False,
+    "required": ["package"],
     "properties": {
         "package": {
             "type": "object",
             "additionalProperties": False,
+            "required": [
+                "name",
+                "versions",
+                "headers",
+            ],
             "properties": {
                 "name": {"type": "string"},
                 "versions": {"type": "array", "items": {"type": "string"}},
@@ -54,6 +61,44 @@ config_schema = {
                 "libregex": {"type": "array", "items": {"type": "string"}},
                 "bins": {"type": "array", "items": {"type": "string"}},
                 "run": {"type": "array", "items": {"type": "string"}},
+            },
+        },
+        "test": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "build_cache": {"type": "boolean"},
+            },
+        },
+    },
+}
+
+test_schema = {
+    "$schema": "http://json-schema.org/schema#",
+    "title": "build-abi-containers test schema",
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "packages": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "name": {"type": "string"},
+                    "versions": {"type": "array", "items": {"type": "string"}},
+                },
+            },
+        },
+        "experiment": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["name"],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "enum": ["single-test", "double-test", "manual-test"],
+                },
             },
         },
         "test": {
@@ -80,30 +125,64 @@ tester_schema = {
                 "runscript": {"type": "string"},
                 "entrypoint": {"type": "string"},
                 "version": {"type": "string"},
+                "args": {"type": "array", "items": {"type": "string"}},
             },
         }
     },
 }
 
 
-class Tester:
-    def __init__(self, tester_config):
-        """A tester is software like libabigail to analyze ABI"""
-        self.config = read_yaml(tester_config)
-        jsonschema.validate(self.config, schema=tester_schema)
+class Config(ABC):
+    """A general Config base to load a config and validate it"""
+
+    def __init__(self, config_file):
+        self.config_file = os.path.abspath(config_file)
+        self.config = read_yaml(self.config_file)
+        self.config_basename = os.path.basename(self.config_file)
+        jsonschema.validate(self.config, schema=self.schema)
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __getattr__(self, key):
+        return self.config.get(key)
+
+
+class Tester(Config):
+    """A testing base like libabigail or smeagle"""
+
+    schema = tester_schema
+
+    def __str__(self):
+        return "<tester:%s>" % os.path.basename(self.config_file)
 
     def __getattr__(self, key):
         return self.config["tester"].get(key)
 
 
-class TestPackage:
-    def __init__(self, package_config):
-        """A package to be tested with a tester."""
-        self.config = read_yaml(package_config)
-        jsonschema.validate(self.config, schema=config_schema)
+class TestPackage(Config):
+    """A package to be tested with a tester."""
+
+    schema = package_schema
+
+    def __str__(self):
+        return "<package:%s>" % self.config["package"]["name"]
 
     def __getattr__(self, key):
         return self.config["package"].get(key) or self.config.get(key)
+
+
+class Test(Config):
+
+    schema = test_schema
+
+    def __str__(self):
+        return "<test:%s>" % os.path.basename(self.config_file)
+
+    @property
+    def name(self):
+        """The name of the test is the yaml file without extension"""
+        return re.sub("[.](yaml|yml)", "", os.path.basename(self.config_file))
 
 
 class TestSetup:
@@ -117,6 +196,10 @@ class TestSetup:
     @property
     def test_dir(self):
         return os.path.join(self.root, "tests")
+
+    @property
+    def package_dir(self):
+        return os.path.join(self.root, "packages")
 
     @property
     def templates_dir(self):
@@ -183,9 +266,50 @@ class TestSetup:
 
         self.containers = set(self.containers)
 
+    def generate_single_tests(self, test):
+        """
+        Generate a list of tests for a library against itself.
+        """
+        # Assemble list of tests to run
+        tests = []
+
+        # If we have more than one package, no go
+        package = test.config.get("packages", [])
+        if len(package) > 1:
+            sys.exit("A single-test experiment can only include one package")
+        package = package[0]
+
+        # Create the package to test
+        package_file = self.get_package_config(package["name"])
+        package = TestPackage(package_file)
+
+        # Get versions
+        if test.versions:
+            if any(test.versions not in package.versions):
+                sys.exit("Valid versions include %s" % package.versions)
+        versions = test.versions or package.versions
+
+        # We should still be able to retrieve the correct list from the package
+        package.versions = versions
+
+        # Test against all versions
+        for version1 in versions:
+            for version2 in versions:
+                tests.append(
+                    {
+                        "package1": package,
+                        "package2": package,
+                        "version1": version1,
+                        "version2": version2,
+                    }
+                )
+
+        # Return a list of tests and unique packages
+        return tests, [package]
+
     def build(
         self,
-        package,
+        test,
         testers,
         use_cache=False,
         cache_only=False,
@@ -197,12 +321,23 @@ class TestSetup:
         """
         Create a Dockerfile and build
         """
+        # read in this test file
+        test_file = self.get_test_config(test)
+        test = Test(test_file)
+
         # Containers to skip building
         skips = skips or []
 
-        # Create the package to test
-        package_file = self.get_package_config(package)
-        package = TestPackage(package_file)
+        # Get the experiment type to assemble list of tests
+        experiment = test.config["experiment"]["name"]
+
+        if experiment == "single-test":
+
+            # Assemble list of tests to run
+            tests, packages = self.generate_single_tests(test)
+
+        else:
+            sys.exit("Experiment type %s is not supported." % experiment)
 
         # Return a list of containers build to test later
         containers = []
@@ -210,9 +345,14 @@ class TestSetup:
         # For each testing container, and each version, build
         for tester in self.testers:
 
+            # If we have a test section
+            build_cache = False
+            if test.test:
+                build_cache = test.test.get("build_cache", build_cache)
+
             # Get the tester build template
             template = self.get_tester_template(
-                tester, package.test["build_cache"] or use_cache, prebuilt
+                tester, build_cache or use_cache, prebuilt
             )
             tester = Tester(self.get_tester_config(tester))
 
@@ -226,15 +366,18 @@ class TestSetup:
 
             # Render the template and runtests.py file
             runscript = self.get_tester_runscript(tester).render(
-                package=package, tester=tester
+                tests=tests, tester=tester, packages=packages, experiment=experiment
             )
-
             out = template.render(
-                package=package, tester=tester, bins=bins, cache_only=cache_only
+                packages=packages,
+                tester=tester,
+                bins=bins,
+                cache_only=cache_only,
+                test=test,
             )
             container_name = "quay.io/buildsi/%s-test-%s:latest" % (
                 tester.name,
-                package.name,
+                test.name,
             )
 
             # Skip building the container if requested to skip
@@ -249,7 +392,7 @@ class TestSetup:
                 write_file(out, os.path.join(tmp, "Dockerfile"))
                 write_file(runscript, os.path.join(tmp, tester.runscript))
                 shutil.copyfile(
-                    package_file, os.path.join(tmp, os.path.basename(package_file))
+                    test_file, os.path.join(tmp, os.path.basename(test_file))
                 )
 
                 # If we have extra files to add, copy them
@@ -282,24 +425,36 @@ class TestSetup:
             sys.exit("%s does not exist!" % config_file)
         return config_file
 
+    def get_test_config(self, path):
+        """
+        Given a test name, get the config for it.
+        """
+        return self._get_file(path, self.test_dir)
+
+    def _get_file(self, name, dirname):
+        """
+        Get a known test or package file
+        """
+        # If we are given a file directly, honor it
+        if os.path.exists(name):
+            return name
+
+        # Look for exact file in the required directory
+        filename = os.path.join(dirname, name)
+        if os.path.exists(filename):
+            return filename
+
+        # Last resort - add the extension
+        filename = "%s.yaml" % filename
+        if not os.path.exists(filename):
+            sys.exit("%s does not exist!" % name)
+        return filename
+
     def get_package_config(self, package):
         """
         Given a package and tester, return the tester config.
         """
-        # If we are given a package file directly, honor it
-        if os.path.exists(package):
-            return package
-
-        # Look for exact file in the tests directory
-        package_file = os.path.join(self.test_dir, package)
-        if os.path.exists(package_file):
-            return package_file
-
-        # Last resort - the name of the yaml file without extension
-        package_file = os.path.join(self.test_dir, "%s.yaml" % package)
-        if not os.path.exists(package_file):
-            sys.exit("%s does not exist!" % package_file)
-        return package_file
+        return self._get_file(package, self.package_dir)
 
     def get_tester_runscript(self, tester):
         """
@@ -423,7 +578,7 @@ def get_parser():
         )
 
     for command in [test, build, deploy]:
-        command.add_argument("packages", help="packages to test", nargs="+")
+        command.add_argument("tests", help="tests to run", nargs="+")
         command.add_argument(
             "--root",
             "-r",
@@ -460,7 +615,7 @@ def main():
     setup = TestSetup(args.root)
 
     if args.command == "build":
-        for package in args.packages:
+        for package in args.tests:
             setup.build(
                 package,
                 args.tester,
@@ -472,12 +627,12 @@ def main():
             )
 
     elif args.command == "deploy":
-        for package in args.packages:
+        for package in args.tests:
             for container in setup.get_containers(package, args.tester):
                 setup.deploy(container)
 
     elif args.command == "test":
-        for package in args.packages:
+        for package in args.tests:
 
             # By default, don't skip any builds, unless a rebuild is not wanted
             skips = []

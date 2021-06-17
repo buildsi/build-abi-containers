@@ -14,13 +14,16 @@ evaluating ABI, and to run tests for ABI in the CI. The approach we take is the 
 ## Table of Contents
 
  - [Quick Start](#quick-start)
+ - [Concepts](#concepts)
  - [Overview of Steps](#overview-of-steps)
+ - [Experiments](#experiments)
  - [Questions for Discussion](#questions-for-discussion)
  - [Organization](#organization)
  - [Usage](#usage)
    - [Build](#build)
    - [Test](#test)
    - [Add a Tester](#add-a-tester)
+   - [Add a Package](#add-a-package)
    - [Add a Test](#add-a-test)
    - [Reproduce a Test](#reproduce-a-test)
    - [Bolos Notes](#bolos-notes)
@@ -46,14 +49,75 @@ $ pip install -r requirements.txt
 
 These commands will be explained in detail in these docs.
 
+## Concepts
+
+### Packages
+
+A package is a spack package, meaning it has versions and variants.
+Packages are defined in [packages](packages). Each is a yaml file that can
+express libraries built, directories to include, and custom examples to compile.
+
+### Tests
+
+A test is defined by a yaml file in [tests](tests). Specifically, a test can follow
+any of the following experiment patterns:
+
+ - Within package experiment, `single-test`
+ - Automated between package experiment, `pairwise-test`
+ - Hard coded between package experiment `manual-test`
+
+For example, to compare all versions of zlib to one another, we might have:
+
+```yaml
+packages:
+ # no versions specified implies all
+ - name: zlib
+
+# This can be single-test, double-test, or manual-test
+# pair-wise test implies we require 2 packages 
+experiment:
+  name: single-test
+```
+
+In the above, since we didn't specify a list of versions, all versions will
+be used. The `single-test` directive instructs the framework to generate
+tests to compare versions for a single library.
+
+### Tester
+
+A tester is built into a base container image, and intended to run one or more
+tests. E.g., libabigail, Smeagle, and Symbolator are testers. Each can build it's
+own base container to add packages and specific experiments to.
+
+### Experiment
+
+An experiment is a type of test. Each test file should define one experiment
+type by name and relevant packages and metadata. The tester can choose
+how to run each experiment type (e.g., two types might share a test).
+
 
 ## Overview of Steps
 
 1. We start with base containers that have "testers" such as libabigail. Their recipe files are included in [docker](docker) and the GitHub workflow [build-deploy.yaml](.github/workflows/build-deploy.yaml). When any of these Dockerfiles change, the bases are built in a pull request (PR), and when the PR is merged the containers are deployed. For example, [here](https://quay.io/repository/buildsi/libabigail?tab=tags) is the libabigail testing base on Quay.io. A tester like libabigail has it's own entrypoint and runscript where we can express how to write tests. For example, libabigail is going to run abidw, abidiff, etc.
-2. We define packages to test in [tests](tests) as yaml files. The yaml files include things like header files, versions, and libraries, and these variables are handed to the testing template. This means the resulting container of the libabigail base + the package (e.g., mpich) will have a custom runscript to run the libabigail commands on the various libaries, etc.
-3. The results are saved in the container at /results, in a tree that will ensure that different tester and package bases have a unique namespace. The tests are run in a GitHub workflow and currently saved as artifacts. (E.g., see [this run](https://github.com/spack/build-abi-containers/actions/runs/882797815)). The artifacts are discovered and saved in [build-abi-containers-results](https://github.com/buildsi/build-abi-containers-results).
+2. We define packages to test in [packages](packages) as yaml files. The yaml files include things like header files, versions, and libraries.
+3. We define tests for specific packages in [tests](tests). A test can follow a specific experiment type, which will determine the subsets of actual functions that are run in a tester.
+4. The package, test metadata (and experiment) are combined and then rendered into the testing template. This means the resulting container of the libabigail base + the package (e.g., mpich) will have a custom runscript to run the libabigail commands on the various libaries, etc.
+5. The results are saved in the container at /results, in a tree that will ensure that different tester and package bases have a unique namespace. The tests are run in a GitHub workflow and currently saved as artifacts. (E.g., see [this run](https://github.com/spack/build-abi-containers/actions/runs/882797815)). The artifacts are discovered and saved in [build-abi-containers-results](https://github.com/buildsi/build-abi-containers-results).
 
 It's recommended to read the [usage section](#usage) to get more detail on the above.
+
+## Experiments
+
+The following experiments are valid. 
+
+ - *single-test*: is considered to be testing within a package. E.g., running abidw or testing versions between one another.
+ - *double-test*: is testing two different packages together, typically all versions.
+ - *manual-test*: is explicitly defining the tests.
+ 
+We will add more experiment types if this set is not appropriate for our use case.
+It is up to the tester to decide what to run based on each experiment name. For example,
+the libabigail test runscript uses pytest with parameterization, and only runs a subset
+of the functions depending on the experiment type.
 
 ## Questions for Discussion / Remaining to do
 
@@ -63,10 +127,12 @@ It's recommended to read the [usage section](#usage) to get more detail on the a
 ## Organization
 
  - [docker](docker): includes `Dockerfile`s, one per testing base, that will be deployed to [quay.io/buildsi](https://quay.io/organization/buildsi).
- - [tests](tests): includes yaml config files that are matched to a spack package to test. The configs are validated when loaded.
+ - [packages](packages): are packages that are defined to test, including versions, libraries, etc..
+ - [tests](tests): includes yaml config files that are matched to one or more spack packages and an experiment.
  - [testers](testers): is a folder of tester subdirectories, which should be named for the tester (e.g., libabigail). No other files should be put in this folder root.
  - [templates](templates): includes both container build templates, and tester runtime templates. The container build defaults to Dockerfile.default to build from spack source, and when we have a buildcache (ideally with debug) we can change that to Dockerfile.buildcache (the `--use-cache` argument described next.)
 
+All configs for the above are validated when loaded.
 
 ## Usage
 
@@ -178,7 +244,10 @@ Once your container is built, testing is just running it!
 $ docker run -it quay.io/buildsi/libabigail-test-mpich:latest
 ```
 
-You can also request build and tests to be run at the same time:
+For now, we are building from source, because we do not have a build cache
+that is well populated, nor do we have a global debug (this is problematic regardless).
+We will need to add global debug to add to these builds for most of the results to be
+meaningful. You can also request build and tests to be run at the same time:
 
 ```bash
 ./build-si-containers test mpich
@@ -399,17 +468,15 @@ pull request process, and deployed on merge to main.
 
 These are the bases we add packages on top of, and then run tests.
 
-### Add a Test
 
-Adding a test comes down to:
+### Add a Package
 
-1. Adding a yaml file in the [tests](tests) folder named according to the package (or group) to test.
-2. If build caches are not available, ensuring an autamus container is built in [buildsi](https://github.com/autamus/registry/tree/main/containers/buildsi/) namespace.
+Adding a package comes down to adding a yaml file in the [packages](packages) 
+folder named according to the package (or group) to test.
 
-In the [tests](tests) folder you will find different families of packages to test.
-For example, the `mpich.yaml` file will eventually build different containers to
-test each tester (e.g., libabigail) against for some number of versions and
-libraries. Here is what that looks like:
+Each package file should include metadata about the package, including
+versions, libraries, and extra commands to run.
+For example, here is the package file for mpich.
 
 ```yaml
 package:
@@ -438,15 +505,25 @@ test:
   build_cache: false
 ```
 
-For now, we are building from cache, because we do not have a build cache
-that is well populated, nor do we have a global debug (this is problematic regardless).
-We will need to add global debug to add to these builds for most of the results to be
-meaningful. Overall, this means that:
+A package file can be used for one or more tests, discussed next.
 
- - we need to be able to build with debug symbols globally
- - strip needs to be set to false
- 
-If we can use build caches, the builds will be much faster than they currently are.
+### Add a Test
+
+A test is a yaml file in [tests](tests.yaml). It should typically specify
+one package for a `single-test` experiment, and two for a `double-test` or
+`manual-test`. For example, here is a `single-test` experiment for zlib:
+
+```yaml
+packages:
+ # no versions specified implies all
+ - name: zlib
+
+# This can be single-test or pairwise-test
+# pair-wise test implies we require 2 packages 
+experiment:
+  name: single-test
+```
+
 
  
 ### Reproduce a Test
@@ -458,16 +535,20 @@ and tests for mpich. We can use the [quay.io/buildsi/libabigail-test-mpich](http
 container. First (in case you have an old version) pull:
 
 ```bash
-$ docker pull quay.io/buildsi/libabigail-test-mpich:latest
+$ docker pull quay.io/buildsi/libabigail-test-zlib:latest
 ```
 
 And then because the entrypoint is set to run the tests, we can just run the container!
 
 ```bash
-$ docker run -it --rm quay.io/buildsi/libabigail-test-mpich:latest
-Testing lib/libmpich.so with abidw
-time -p abidw  --hd /opt/spack/opt/spack/linux-ubuntu18.04-skylake/gcc-7.5.0/mpich-3.0.4-4ibio2outodij3iricf3avkjnojh7iil/include  /opt/spack/opt/spack/linux-ubuntu18.04-skylake/gcc-7.5.0/mpich-3.0.4-4ibio2outodij3iricf3avkjnojh7iil/lib/libmpich.so --out-file /results/libabigail/1.8.2/mpich/3.0.4/lib/libmpich.so.xml > /results/libabigail/1.8.2/mpich/3.0.4/lib/libmpich.so.xml.log 2>&1
-Comparing mpich versions 3.0.4 and 3.0.4 lib/libmpich.so with abidiff
+$ docker run -it --rm quay.io/buildsi/libabigail-test-zlib:latest
+====================================================== test session starts ======================================================
+platform linux -- Python 3.8.5, pytest-6.2.4, py-1.10.0, pluggy-0.13.1
+rootdir: /build-si
+collected 21 items                                                                                                              
+
+runtests.py Testing zlib@1.2.11 lib/libz.so with abidw
+Testing lib/libz.so with abidw
 ...
 ```
 
@@ -475,64 +556,59 @@ And you would bind results to your host to save them locally.
 
 ```bash
 mkdir -p results
-$ docker run -it --rm -v $PWD/results:/results quay.io/buildsi/libabigail-test-mpich:latest
+$ docker run -it --rm -v $PWD/results:/results quay.io/buildsi/libabigail-test-zlib:latest
 ```
 
 Or you can run tests interactively in the container:
 
 ```bash
-$ docker run -it --rm --entrypoint bash quay.io/buildsi/libabigail-test-mpich:latest
-root@6d2ea5dbddbf:/build-si# python3 runtests.py 
+$ docker run -it --rm --entrypoint bash quay.io/buildsi/libabigail-test-zlib:latest
+root@6d2ea5dbddbf:/build-si# pytest -xs runtests.py 
 ```
 
+Note that the entrypoint might vary based on the tester - libabigail uses a pytest script.
 When you are done, the testing structure is the same as before - a nested tree
 organized by tester, package, and versions so that all tests can live alongside
 one another.
 
 ```
-/results/
-`-- libabigail
-    `-- 1.8.2
-        `-- mpich
-            |-- 3.0.4
-            |   `-- lib
-            |       |-- libmpich.so.xml
-            |       `-- libmpich.so.xml.log
-            |-- 3.1.4
-            |   `-- lib
-            |       |-- libmpich.so.xml
-            |       `-- libmpich.so.xml.log
-            |-- 3.3.2
-            |   `-- lib
-            |       |-- libmpich.so.xml
-            |       `-- libmpich.so.xml.log
-            |-- 3.4.1
-            |   `-- lib
-            |       |-- libmpich.so.xml
-            |       `-- libmpich.so.xml.log
-            `-- diff
-                |-- 3.0.4-3.0.4
-                |-- 3.0.4-3.0.4.log
-                |-- 3.0.4-3.1.4
-...
-                |-- 3.4.1-3.3.2
-                |-- 3.4.1-3.3.2.log
-                |-- 3.4.1-3.4.1
-                `-- 3.4.1-3.4.1.log
+results/
+└── libabigail
+    └── 1.8.2
+        ├── diff
+        │   └── zlib
+        │       └── zlib
+        │           ├── 1.2.11-1.2.11
+        │           ├── 1.2.11-1.2.11.log
+        │           ├── 1.2.11-1.2.8
+        │           ├── 1.2.11-1.2.8.log
+        │           ├── 1.2.8-1.2.11
+        │           ├── 1.2.8-1.2.11.log
+        │           ├── 1.2.8-1.2.8
+        │           └── 1.2.8-1.2.8.log
+        └── zlib
+            ├── 1.2.11
+            │   └── lib
+            │       ├── libz.so.xml
+            │       └── libz.so.xml.log
+            └── 1.2.8
+                └── lib
+                    ├── libz.so.xml
+                    └── libz.so.xml.log
 
-12 directories, 40 files
+10 directories, 12 files
 ```
 
 If you already have the container locally, you can also test with the script here:
 
 ```bash
-./build-si-containers test mpich
+./build-si-containers test zlib
 ```
 
 or force a rebuild.
 
 ```bash
-./build-si-containers test mpich --rebuild
+./build-si-containers test zlib --rebuild
 ```
 
 It's up to you!
