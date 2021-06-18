@@ -48,7 +48,7 @@ def run_abidiff(libname1, libname2, package1, package2, version1, version2, path
 
     headers1 = " ".join(["--hd1 %s/%s" %(path1, header) for header in headers1])
     headers2 = " ".join(["--hd2 %s/%s" %(path2, header) for header in headers2])
-    out_file = "/results/{{ tester.name }}/{{ tester.version }}/diff/%s/%s/%s-%s" % (package1, package2, version1, version2)
+    out_file = "/results/{{ tester.name }}/{{ tester.version }}/%s/diff/%s/%s-%s" % (package1, package2, version1, version2)
     create_outdir(out_file)
 
     lib1 = os.path.join(path1, libname1)
@@ -69,7 +69,7 @@ def run_abicompat(pkg1, pkg2, binary, path, lib1, lib2, version1, version2):
 
     # We can only run abicompat if it exists
     if os.path.exists(binary):
-        out_file = "/results/{{ tester.name }}/{{ tester.version }}/%s/compat/%s-%s" % (pkg1, pkg2, version1, version2)
+        out_file = "/results/{{ tester.name }}/{{ tester.version }}/%s/compat/%s/%s-%s" % (pkg1, pkg2, version1, version2)
         create_outdir(out_file)                
 
         # Important! This requires debug symbols, so we allow to fail since most don't have
@@ -175,7 +175,6 @@ def test_single_package_abidw(package, version, libs, libregex, headers):
         print("Testing %s@%s %s with abidw" % (package, version, libname))
         run_abidw(path, lib, libname, out_dir, headers) 
         
-
 
 
 @is_single_double_test
