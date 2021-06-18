@@ -1,0 +1,8 @@
+packages:
+ # no versions specified implies all
+ - name: python
+
+# single-test, double-test, or manual-test
+# double-test or manual-test implies we require 2 packages 
+experiment:
+  name: single-test

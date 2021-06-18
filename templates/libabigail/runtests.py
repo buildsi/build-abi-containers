@@ -119,7 +119,7 @@ def add_libregex(path, libregex):
     if libregex:
         os.chdir(path)
         for regex in libregex:
-            libs += glob(libregex)
+            libs += glob(regex)
         os.chdir(here)
 
     # Return unique libs
