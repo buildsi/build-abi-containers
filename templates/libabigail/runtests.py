@@ -261,4 +261,4 @@ def test_package_abicompat(pkg1, pkg2, version1, version2, libs1, libs2, regex1,
             for binary in bins1:
                 run_abicompat(pkg1, pkg2, binary, path1, lib1, lib2, version1, version2)
             for binary in bins2:
-                run_abicompat(pk1, pkg2, binary, path2, lib2, lib1, version1, version2)
+                run_abicompat(pkg1, pkg2, binary, path2, lib2, lib1, version1, version2)
