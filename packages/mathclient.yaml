@@ -1,0 +1,12 @@
+package:
+ name: mathclient
+ versions:
+  - "1.0.0"
+  - "2.0.0"
+ headers:
+  - include
+ libregex:
+  - lib/libmath.so
+  
+ bins:
+  - bin/math-client
