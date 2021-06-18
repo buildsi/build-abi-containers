@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y curl python3-botocore python3-boto3 && 
     spack mirror add sandbox s3://sandbox-cache && \
     curl http://s3.amazonaws.com/sandbox-cache/build_cache/_pgp/FFEB24B0A9D81F6D5597F9900B59588C86C41BE7.pub > key.pub && spack gpg trust key.pub && \
     spack config add -f "packages.yaml" && \
-    {% for version in package.versions %}spack install --source {% if cache_only %}--cache-only{% endif %} {{ package.name }}@{{ version }} || echo "There was an issue installing {{ package.name }}@{{ version }}" && \{% endfor %}
+    {% for package in packages %}{% for version in package.versions %}spack install --source {% if cache_only %}--cache-only{% endif %} {{ package.name }}@{{ version }} && \{% endfor %}{% endfor %}
     printf "Finished installation attempts\n"
 
 FROM quay.io/buildsi/{{ tester.name }}:{{ tester.version }}
@@ -17,10 +17,10 @@ COPY --from=base /opt/spack /opt/spack
 
 WORKDIR /build-si/
 ENV PATH=/opt/spack/bin:$PATH
-COPY {{ package.name }}.yaml /build-si/tests.yaml
+COPY {{ test.config_basename }} /build-si/tests.yaml
 COPY {{ tester.runscript }} /build-si/{{ tester.runscript }}
 {% for bin in bins %}COPY {{ bin }} /usr/local/bin/{{ bin }}
 {% endfor %}
 RUN apt-get install -y time && \
     mkdir -p /results && chmod +x /build-si/{{ tester.runscript }} {% if bins %}{% for bin in bins %} && chmod +x /usr/local/bin/{{ bin }}{% endfor %}{% endif %}
-ENTRYPOINT ["{{ tester.entrypoint }}", "/build-si/{{ tester.runscript }}"]
+ENTRYPOINT ["{{ tester.entrypoint }}", {% for arg in tester.args %}"{{ arg }}", {% endfor %}"/build-si/{{ tester.runscript }}"]
