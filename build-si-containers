@@ -4,7 +4,7 @@
 # 1. Take one or more test names (e.g., mpich) from the command line
 # 2. Take one or more testers found in testers/ (default to libabigail)
 # 3. For each test, for each tester, build a container that spack installs the
-#    software on top of the testers container.
+#    packages specified in the test on top of the testers container.
 # 4. Install the script/library here to run the tests
 # 5. Output should be saved to a namespaced folder, <tester>/<package>/etc
 # 6. We will need a way to compare output.
@@ -133,7 +133,9 @@ tester_schema = {
 
 
 class Config(ABC):
-    """A general Config base to load a config and validate it"""
+    """
+    A general Config base to load a config and validate it
+    """
 
     def __init__(self, config_file):
         self.config_file = os.path.abspath(config_file)
@@ -149,7 +151,9 @@ class Config(ABC):
 
 
 class Tester(Config):
-    """A testing base like libabigail or smeagle"""
+    """
+    A testing base like libabigail or smeagle
+    """
 
     schema = tester_schema
 
@@ -161,7 +165,9 @@ class Tester(Config):
 
 
 class TestPackage(Config):
-    """A package to be tested with a tester."""
+    """
+    A package to be tested with a tester.
+    """
 
     schema = package_schema
 
@@ -181,7 +187,9 @@ class Test(Config):
 
     @property
     def name(self):
-        """The name of the test is the yaml file without extension"""
+        """
+        The name of the test is the yaml file without extension
+        """
         return re.sub("[.](yaml|yml)", "", os.path.basename(self.config_file))
 
 
@@ -210,14 +218,26 @@ class TestSetup:
         return os.path.join(self.root, "testers")
 
     def load_testers(self):
-        """load tester names based on the Dockerfile extensions"""
+        """
+        Load tester names based on the Dockerfile extensions
+        """
         self.testers = set()
         for tester in os.listdir(self.testers_dir):
+            if "symbolator" in tester:
+                continue
             self.testers.add(re.sub("[.](yml|yaml)", "", tester))
 
     def check_root(self):
-        """Ensure that the root is structured correctly."""
-        for path in self.root, self.test_dir, self.testers_dir, self.templates_dir:
+        """
+        Ensure that the root is structured correctly.
+        """
+        for path in (
+            self.root,
+            self.test_dir,
+            self.package_dir,
+            self.testers_dir,
+            self.templates_dir,
+        ):
             if not os.path.exists(path):
                 sys.exit("% does not exist in the root!" % path)
 
@@ -615,9 +635,9 @@ def main():
     setup = TestSetup(args.root)
 
     if args.command == "build":
-        for package in args.tests:
+        for test in args.tests:
             setup.build(
-                package,
+                test,
                 args.tester,
                 use_cache=args.use_cache,
                 fail_fast=args.fail_fast,
@@ -627,23 +647,23 @@ def main():
             )
 
     elif args.command == "deploy":
-        for package in args.tests:
-            for container in setup.get_containers(package, args.tester):
+        for test in args.tests:
+            for container in setup.get_containers(test, args.tester):
                 setup.deploy(container)
 
     elif args.command == "test":
-        for package in args.tests:
+        for test in args.tests:
 
             # By default, don't skip any builds, unless a rebuild is not wanted
             skips = []
             if not args.rebuild:
 
                 # Skip containers that already exist
-                for container in setup.get_containers(package, args.tester):
+                for container in setup.get_containers(test, args.tester):
                     if container in setup.containers:
                         skips.append(container)
             containers = setup.build(
-                package,
+                test,
                 args.tester,
                 use_cache=args.use_cache,
                 fail_fast=args.fail_fast,
