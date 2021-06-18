@@ -140,7 +140,7 @@ def run(cmd):
 @pytest.mark.parametrize('package,version,libs,libregex,headers', [{% for package in packages %}{% for version in package.versions %}
     ("{{ package.name }}", "{{ version }}",
     [{% if package.libs %}{% for lib in package.libs %}"{{ lib }}"{% if loop.last %}{% else %},{% endif %}{% endfor %}{% endif %}],
-    [{% if packages.libregex %}{% for libregex in packages.libregex %}"{{ libregex }}"{% if loop.last %}{% else %},{% endif %}{% endfor %}{% endif %}],
+    [{% if package.libregex %}{% for libregex in package.libregex %}"{{ libregex }}"{% if loop.last %}{% else %},{% endif %}{% endfor %}{% endif %}],
     [{% if package.headers %}{% for header in package.headers %}"{{ header }}"{% if loop.last %}{% else %},{% endif %}{% endfor %}{% endif %}]){% if loop.last %}{% else %},{% endif %}{% endfor %}{% endfor %}])
 
 def test_single_package_abidw(package, version, libs, libregex, headers):

@@ -471,8 +471,19 @@ These are the bases we add packages on top of, and then run tests.
 
 ### Add a Package
 
-Adding a package comes down to adding a yaml file in the [packages](packages) 
+#### Add an Existing Spack Package
+Adding an existing package comes down to adding a yaml file in the [packages](packages) 
 folder named according to the package (or group) to test.
+
+#### Add an Custom Spack Package
+
+If you want to write a custom package, you can simply create another subfolder in
+[spack/packages](spack/packages), which is a test repository of packages
+just for the build here. I (@vsoch) found it easiest to put my testing
+code for such a package in [its own repository](https://github.com/buildsi/build-abi-test-mathclient)
+and then be able to easily install from GitHub releases.
+
+#### Package Metadata
 
 Each package file should include metadata about the package, including
 versions, libraries, and extra commands to run.

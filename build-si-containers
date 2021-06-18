@@ -217,6 +217,13 @@ class TestSetup:
     def testers_dir(self):
         return os.path.join(self.root, "testers")
 
+    @property
+    def spack_packages(self):
+        """
+        Custom spack test packages
+        """
+        return os.path.join(self.root, "spack")
+
     def load_testers(self):
         """
         Load tester names based on the Dockerfile extensions
@@ -409,6 +416,9 @@ class TestSetup:
             print("Dockerfile:---------\n%s\n" % out)
 
             with tempfile.TemporaryDirectory() as tmp:
+
+                # Copy spack packages
+                shutil.copytree(self.spack_packages, os.path.join(tmp, "spack"))
                 write_file(out, os.path.join(tmp, "Dockerfile"))
                 write_file(runscript, os.path.join(tmp, tester.runscript))
                 shutil.copyfile(
