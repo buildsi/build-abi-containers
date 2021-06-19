@@ -34,16 +34,22 @@ evaluating ABI, and to run tests for ABI in the CI. The approach we take is the 
 # Install dependencies
 $ pip install -r requirements.txt
 
-# Build a testing container for a tester and a package (mpich.yaml in tests)
+# Build a testing container for all testers and a test (mpich.yaml in tests)
 ./build-si-containers build mpich
 
-# The default tester is libabigail (the command above is equivalent to):
+# Build a tester with libabigail and mpich:
 ./build-si-containers build --tester libabigail mpich
 
-# Build and run libabigail's tests
-./build-si-containers test mpich
+# Build a testing container for only symbolator and the mpich test
+./build-si-containers build --tester symbolator mpich
 
-# Deploy the libabgail + mpich tester container
+# Build and run libabigail's tests
+./build-si-containers test --tester libabigail mpich
+
+# Build and run symbolator's tests
+./build-si-containers test --tester symbolator mpich
+
+# Deploy the libabgail + mpich tester, and symbolator + mpich containers
 ./build-si-containers deploy mpich
 ```
 
