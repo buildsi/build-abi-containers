@@ -107,7 +107,7 @@ how to run each experiment type (e.g., two types might share a test).
 
 ## Overview of Steps
 
-1. We start with base containers that have "testers" such as libabigail. Their recipe files are included in [docker](docker) and the GitHub workflow [build-deploy.yaml](.github/workflows/build-deploy.yaml). When any of these Dockerfiles change, the bases are built in a pull request (PR), and when the PR is merged the containers are deployed. For example, [here](https://quay.io/repository/buildsi/libabigail?tab=tags) is the libabigail testing base on Quay.io. A tester like libabigail has it's own entrypoint and runscript where we can express how to write tests. For example, libabigail is going to run abidw, abidiff, etc.
+1. We start with base containers that have "testers" such as libabigail. Their recipe files are included in [docker](docker) and the GitHub workflow [build-deploy.yaml](.github/workflows/build-deploy.yaml). When any of these Dockerfiles change, the bases are built in a pull request (PR), and when the PR is merged the containers are deployed to [GitHub container registry (ghcr.io)](https://github.com/orgs/buildsi/packages). A tester like libabigail has it's own entrypoint and runscript where we can express how to write tests. For example, libabigail is going to run abidw, abidiff, etc.
 2. We define packages to test in [packages](packages) as yaml files. The yaml files include things like header files, versions, and libraries.
 3. We define tests for specific packages in [tests](tests). A test can follow a specific experiment type, which will determine the subsets of actual functions that are run in a tester.
 4. The package, test metadata (and experiment) are combined and then rendered into the testing template. This means the resulting container of the libabigail base + the package (e.g., mpich) will have a custom runscript to run the libabigail commands on the various libaries, etc.
@@ -135,7 +135,7 @@ of the functions depending on the experiment type.
 
 ## Organization
 
- - [docker](docker): includes `Dockerfile`s, one per testing base, that will be deployed to [quay.io/buildsi](https://quay.io/organization/buildsi).
+ - [docker](docker): includes `Dockerfile`s, one per testing base, that will be deployed to [ghcr.io/buildsi](https://github.com/orgs/buildsi/packages).
  - [packages](packages): are packages that are defined to test, including versions, libraries, etc..
  - [tests](tests): includes yaml config files that are matched to one or more spack packages and an experiment.
  - [testers](testers): is a folder of tester subdirectories, which should be named for the tester (e.g., libabigail). No other files should be put in this folder root.
@@ -203,7 +203,7 @@ optional arguments:
   --root ROOT, -r ROOT  The root with the tests and testers directories.
 ```
 
-We will be doing a multi-stage build with a testing base from [quay.io/buildsi](https://quay.io/organization/buildsi).
+We will be doing a multi-stage build with a testing base from [ghcr.io/buildsi](https://github.com/orgs/buildsi/packages).
 If you use a prebuilt container (flag `--prebuilt`) then it needs to be available from [autamus](https://autamus.io) with the
 name `ghcr.io/autamus/buildsi-<package>` and have all versions of interest installed. Currently,
 the default is to read versions from [tests](tests) and then built from scratch. If you want to build
@@ -215,7 +215,7 @@ a test container (e.g., the file libabigail-test-mathclient.yaml) you can do:
 
 This build is also done for `build-si-containers test` if the container has not
 been built yet. During CI, the container is built and tested, and then deployed
-when merged into main. This means it is pushed to quay.io, where anyone can
+when merged into main. This means it is pushed to ghcr.io, where anyone can
 pull to rerun and reproduce results. If you want to give the build cache a shot
 (maybe if we can update it to include more packages?) you can do:
 
@@ -247,7 +247,7 @@ do a build if necessary.
 Once your container is built, testing is just running it!
 
 ```bash
-$ docker run -it quay.io/buildsi/libabigail-test-mathclient:latest
+$ docker run -it ghcr.io/buildsi/libabigail-test-mathclient:latest
 ```
 
 For now, we are building from source, because we do not have a build cache
@@ -309,7 +309,7 @@ to save files generated locally, you need to bind to `/results` in the container
 
 ```bash
 $ mkdir -p results
-$ docker run -v $PWD/results:/results -it quay.io/buildsi/libabigail-test-mpich:latest
+$ docker run -v $PWD/results:/results -it ghcr.io/buildsi/libabigail-test-mpich:latest
 $ tree results/
 results/
 └── libabigail
@@ -339,7 +339,7 @@ done yet).
 
 ### Deploy
 
-After a container is built, you can use deploy to push to Quay.io.
+After a container is built, you can use deploy to push to ghcr.io.
 
 ```bash
 $ ./build-si-containers deploy -h
@@ -441,7 +441,7 @@ when we know what we want.
 
 The Dockerfile base templates are in [docker](docker), in subfolders named for
 the testers. These bases will be built automatically on any changes to the files,
-and deployed to [quay.io/buildsi](https://quay.io/organization/buildsi). The purpose
+and deployed to [ghcr.io/buildsi](https://github.com/orgs/buildsi/packages). The purpose
 of these containers is to provide a base that has the testing software, onto which
 we can install a package and run tests. This means that to add a new testing base you should:
 
@@ -556,26 +556,23 @@ we'd want to call this `libabigail-test-zlib.yaml`.
 ### Reproduce a Test
 
 If you have a test case to share with a colleague or otherwise reproduce,
-since all testing bases are uploaded to the quay.io registry, this is easy to do!
-For example, let's say that we want to reproduce with testing base libabigail
-and tests for mpich. We can use the [quay.io/buildsi/libabigail-test-mpich](https://quay.io/repository/buildsi/libabigail-test-mpich?tab=tags)
+since all testing bases are uploaded to the ghcr.io registry, this is easy to do!
+For example, let's say that we want to reproduce with testing base symbolator
+and tests for mathclient. We can use the [ghcr.io/buildsi/symbolator-test-mathclient](https://github.com/buildsi/build-abi-containers/pkgs/container/symbolator-test-mathclient)
 container. First (in case you have an old version) pull:
 
 ```bash
-$ docker pull quay.io/buildsi/libabigail-test-zlib:latest
+$ docker pull ghcr.io/buildsi/libabigail-test-mathclient:latest
 ```
 
 And then because the entrypoint is set to run the tests, we can just run the container!
 
 ```bash
-$ docker run -it --rm quay.io/buildsi/libabigail-test-zlib:latest
+$ docker run -it --rm ghcr.io/buildsi/libabigail-test-mathclient:latest
 ====================================================== test session starts ======================================================
 platform linux -- Python 3.8.5, pytest-6.2.4, py-1.10.0, pluggy-0.13.1
 rootdir: /build-si
 collected 21 items                                                                                                              
-
-runtests.py Testing zlib@1.2.11 lib/libz.so with abidw
-Testing lib/libz.so with abidw
 ...
 ```
 
@@ -583,13 +580,13 @@ And you would bind results to your host to save them locally.
 
 ```bash
 mkdir -p results
-$ docker run -it --rm -v $PWD/results:/results quay.io/buildsi/libabigail-test-zlib:latest
+$ docker run -it --rm -v $PWD/results:/results ghcr.io/buildsi/libabigail-test-mathclient:latest
 ```
 
 Or you can run tests interactively in the container:
 
 ```bash
-$ docker run -it --rm --entrypoint bash quay.io/buildsi/libabigail-test-zlib:latest
+$ docker run -it --rm --entrypoint bash ghcr.io/buildsi/libabigail-test-mathclient:latest
 root@6d2ea5dbddbf:/build-si# pytest -xs runtests.py 
 ```
 

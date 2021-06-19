@@ -1,0 +1,9 @@
+packages:
+ # no versions specified implies all
+ - name: zlib
+
+tester:
+  name: libabigail
+
+experiment:
+  name: single-test

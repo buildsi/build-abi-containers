@@ -1,0 +1,9 @@
+packages:
+ # no versions specified implies all
+ - name: openmpi
+
+tester:
+  name: libabigail
+
+experiment:
+  name: single-test

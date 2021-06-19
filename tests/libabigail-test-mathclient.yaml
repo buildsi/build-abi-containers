@@ -5,8 +5,8 @@ packages:
 tester:
   name: libabigail
 
-# This can be single-test or pairwise-test
-# pair-wise test implies we require 2 packages 
+# This can be single-test or double-test
+# double-test implies we require 2 packages 
 experiment:
   name: single-test
   

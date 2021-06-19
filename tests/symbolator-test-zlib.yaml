@@ -2,7 +2,8 @@ packages:
  # no versions specified implies all
  - name: zlib
 
-# This can be single-test or pairwise-test
-# pair-wise test implies we require 2 packages 
+tester:
+  name: symbolator
+
 experiment:
   name: single-test
