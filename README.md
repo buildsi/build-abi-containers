@@ -4,7 +4,7 @@ The goal of this repository is to provide container environments for
 evaluating ABI, and to run tests for ABI in the CI. The approach we take is the following:
 
  - provide base containers with tools to test abi.
- - For some number of packages, [define libraries and binaries](tests) within to build and test.
+ - For some number of packages, [define libraries and binaries](tests) within to build and test. Each test file corresponds to using a specific tester, and is named accordingly.
  - Build a testing container on top of a base container, with multiple versions of a package defined in any given [test](tests)
  - Run the entrypoint of the container with a local volume to run tests and generate output.
  - Tester container bases along with the tester+test are deployed automatically to reproduce running the tests. Testers and bases are built and deployer when a changed tester Dockerfile or file in [tests](tests) is pushed to main.
@@ -30,27 +30,22 @@ evaluating ABI, and to run tests for ABI in the CI. The approach we take is the 
 
 ## Quick Start
 
+
 ```bash
 # Install dependencies
 $ pip install -r requirements.txt
 
-# Build a testing container for all testers and a test (mpich.yaml in tests)
-./build-si-containers build mpich
+# Build a testing container for libabigail and mathclient (libabigail-test-mathclient.yaml in tests)
+./build-si-containers build libabigail-test-mathclient
 
-# Build a tester with libabigail and mpich:
-./build-si-containers build --tester libabigail mpich
+# Build a testing container for only symbolator and mathclient
+./build-si-containers build symbolator-test-mathclient
 
-# Build a testing container for only symbolator and the mpich test
-./build-si-containers build --tester symbolator mpich
+# Build and run libabigail's mathclient tests
+./build-si-containers test libabigail-test-mathclient
 
-# Build and run libabigail's tests
-./build-si-containers test --tester libabigail mpich
-
-# Build and run symbolator's tests
-./build-si-containers test --tester symbolator mpich
-
-# Deploy the libabgail + mpich tester, and symbolator + mpich containers
-./build-si-containers deploy mpich
+# Deploy a testing container
+./build-si-containers deploy libabigail-test-mpich
 ```
 
 These commands will be explained in detail in these docs.
@@ -62,22 +57,30 @@ These commands will be explained in detail in these docs.
 A package is a spack package, meaning it has versions and variants.
 Packages are defined in [packages](packages). Each is a yaml file that can
 express libraries built, directories to include, and custom examples to compile.
+A package can be used across one or more tests.
 
 ### Tests
 
-A test is defined by a yaml file in [tests](tests). Specifically, a test can follow
-any of the following experiment patterns:
+A test is defined by a yaml file in [tests](tests). While test files could technically
+be share across testers (and the framwork started its development agnostic to the
+tester being chosen) we take an approach where each file has a named tester to
+better trigger specific builds and tests in GitHub when a file changes. 
+A test file can follow any of the following experiment patterns:
 
  - Within package experiment, `single-test`
  - Automated between package experiment, `pairwise-test`
  - Hard coded between package experiment `manual-test`
 
-For example, to compare all versions of zlib to one another, we might have:
+For example, to compare all versions of zlib to one another and use
+the libabigail tester, we might have:
 
 ```yaml
 packages:
  # no versions specified implies all
  - name: zlib
+
+tester:
+  name: libabigail
 
 # This can be single-test, double-test, or manual-test
 # pair-wise test implies we require 2 packages 
@@ -184,12 +187,11 @@ and if we should use the spack build cache to install (not recommended currently
 it doesn't have most of what we need)
 
 ```bash
-usage: build-si-containers build [-h] [--use-cache] [--prebuilt] [--cache-only] [--docker-no-cache] [--fail-fast] [--root ROOT]
-                                 [--tester {libabigail,all}]
-                                 packages [packages ...]
+$ ./build-si-containers build -h
+usage: build-si-containers build [-h] [--use-cache] [--prebuilt] [--cache-only] [--docker-no-cache] [--fail-fast] [--root ROOT] tests [tests ...]
 
 positional arguments:
-  packages              packages to test
+  tests                 tests to run
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -199,28 +201,26 @@ optional arguments:
   --docker-no-cache     Do not use the docker cache.
   --fail-fast           If a container build fails, exit.
   --root ROOT, -r ROOT  The root with the tests and testers directories.
-  --tester {libabigail,all}, -t {libabigail,all}
-                        The tester to run tests for.
 ```
 
 We will be doing a multi-stage build with a testing base from [quay.io/buildsi](https://quay.io/organization/buildsi).
 If you use a prebuilt container (flag `--prebuilt`) then it needs to be available from [autamus](https://autamus.io) with the
 name `ghcr.io/autamus/buildsi-<package>` and have all versions of interest installed. Currently,
 the default is to read versions from [tests](tests) and then built from scratch. If you want to build
-a test container (e.g., the file mpich.yaml) you can do:
+a test container (e.g., the file libabigail-test-mathclient.yaml) you can do:
 
 ```bash
-./build-si-containers build mpich
+./build-si-containers build libabigail-test-mathclient
 ```
 
 This build is also done for `build-si-containers test` if the container has not
-been built yet. During CI, when the container is built and tested, if the label `deploy-test-conatainer`
-is applied, the testing container will be pushed to quay.io, where anyone can
+been built yet. During CI, the container is built and tested, and then deployed
+when merged into main. This means it is pushed to quay.io, where anyone can
 pull to rerun and reproduce results. If you want to give the build cache a shot
 (maybe if we can update it to include more packages?) you can do:
 
 ```bash
-./build-si-containers build --use-cache mpich
+./build-si-containers build --use-cache libabigail-test-mathclient
 ```
 
 You can say to _only_ use the build cache (packages that aren't completely there
@@ -228,7 +228,7 @@ will not be able to build):
 
 ```bash
 # use the spack build cache, but disable docker cache
-./build-si-containers build --use-cache --cache-only mpich
+./build-si-containers build --use-cache --cache-only libabigail-test-mathclient
 ```
 
 This is not recommended unless you have a fully populated cache.
@@ -236,7 +236,7 @@ You can also disable using the docker cache, if apppropriate:
 
 ```bash
 # use the spack build cache, but disable docker cache
-./build-si-containers build --use-cache --docker-no-cache mpich
+./build-si-containers build --use-cache --docker-no-cache libabigail-test-mathclient
 ```
 
 All of these cache commands also work for test, since test can also
@@ -247,7 +247,7 @@ do a build if necessary.
 Once your container is built, testing is just running it!
 
 ```bash
-$ docker run -it quay.io/buildsi/libabigail-test-mpich:latest
+$ docker run -it quay.io/buildsi/libabigail-test-mathclient:latest
 ```
 
 For now, we are building from source, because we do not have a build cache
@@ -256,18 +256,19 @@ We will need to add global debug to add to these builds for most of the results 
 meaningful. You can also request build and tests to be run at the same time:
 
 ```bash
-./build-si-containers test mpich
+./build-si-containers test libabigail-test-mathclient
 ```
 
 The test command also supports a few other parameters:
 
 ```bash
-usage: build-si-containers test [-h] [--outdir OUTDIR] [--rebuild] [--use-cache] [--prebuilt] [--cache-only] [--docker-no-cache]
-                                [--fail-fast] [--root ROOT] [--tester {libabigail,all}]
-                                packages [packages ...]
+$ ./build-si-containers test -h
+usage: build-si-containers test [-h] [--outdir OUTDIR] [--rebuild] [--use-cache] [--prebuilt] [--cache-only] [--docker-no-cache] [--fail-fast]
+                                [--root ROOT]
+                                tests [tests ...]
 
 positional arguments:
-  packages              packages to test
+  tests                 tests to run
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -280,8 +281,6 @@ optional arguments:
   --docker-no-cache     Do not use the docker cache.
   --fail-fast           If a container build fails, exit.
   --root ROOT, -r ROOT  The root with the tests and testers directories.
-  --tester {libabigail,all}, -t {libabigail,all}
-                        The tester to run tests for.
 ```
 
 
@@ -290,7 +289,7 @@ look to see if the container already has been built, and not rebuild it if
 this is the case. To force a rebuild:
 
 ```
-./build-si-containers test --rebuild mpich
+./build-si-containers test --rebuild libabigail-test-mathclient
 ```
 
 By default, results are saved to the present working directory in a "results"
@@ -300,7 +299,7 @@ you can do:
 
 ```bash
 mkdir -p /tmp/tests
-./build-si-containers test --outdir /tmp/tests mpich
+./build-si-containers test --outdir /tmp/tests libabigail-test-mathclient
 ```
 
 To be safe, the directory must already exist.
@@ -343,23 +342,24 @@ done yet).
 After a container is built, you can use deploy to push to Quay.io.
 
 ```bash
-./build-si-containers deploy -h
-usage: build-si-containers deploy [-h] [--root ROOT] [--tester {libabigail,all}] packages [packages ...]
+$ ./build-si-containers deploy -h
+usage: build-si-containers deploy [-h] [--root ROOT] tests [tests ...]
 
 positional arguments:
-  packages              packages to test
+  tests                 tests to run
 
 optional arguments:
   -h, --help            show this help message and exit
   --root ROOT, -r ROOT  The root with the tests and testers directories.
-  --tester {libabigail,all}, -t {libabigail,all}
-                        The tester to run tests for.
 ```
 
 ```bash
-./build-si-containers deploy mpich
+./build-si-containers deploy libabigail-test-mathclient
 ```
 
+This is the command that is run in the CI after merge into main. You could
+also use any other CI service or general infrastructure to run tests and
+deploy containers.
 
 ### Add a Tester
 
@@ -406,8 +406,10 @@ named for the tester. For example, libabigail looks like:
 tester:
   name: libabigail
   version: 1.8.2
-  runscript: runtests.sh
-  entrypoint: /bin/bash
+  runscript: runtests.py
+  entrypoint: pytest
+  args:
+   - "-xs"
 ```
 
 Notice the bin folder? Any files that you add in bin will be added to /usr/local/bin, the idea being
@@ -415,14 +417,14 @@ you can write extra scripts for the tester to use. For now we are just supportin
 
 #### 3. Create the tester runscript
 
-See in the above the filename "runtests.sh"? This needs to be found in the templates
+See in the above the filename "runtests.py"? This needs to be found in the templates
 folder in the tester directory:
 
 ```bash
 templates/
 ├── Dockerfile.default
 └── libabigail
-    └── runtests.sh
+    └── runtests.py
 ```
 
 It should accept a package object, a tester object, and a version,
@@ -453,12 +455,14 @@ a multi-stage build for a given package, package version, and tester.
 If you don't create a package build template, the default will be used, [templates/Dockerfile.default](templates/Dockerfile.default). If you do create a template,
 it can use the following variables:
 
-* package.name: The name of the package to install (e.g., mpich)
-* version: The version of the package to install
+* packages: Is a list of packages that includes package.name and package.versions
 * tester.name: The name of the tester (e.g., libabigail)
 * tester.version: The version of the tester
+* tester.runscript: the tester runscript
+* tester.entrypoint: the tester entrypoint
+* tester.args: a list of arguments for the tester (between the entrypoint and runscript)
+* cache_only: if the user has asked to add `--cache-only` to spack.
 
-The entrypoint will be added dynamically based on the tester.entrypoint, and tester.runscript.
 We are also suggesting the convention of storing the script in the `build-si` directory
 at the root of the container.
 
@@ -466,11 +470,12 @@ at the root of the container.
 
 In [build-deploy.yaml](.github/workflows/build-deploy.yaml) we discover a list of testers by 
 way of looking for changed files in the [testers](testers) directory.
-Then, for each changed file, we trigger a new build. Versions
-for one or more of these builds are derived from the `versions` text file we created earlier.
+Then, for each changed file, we trigger a new build. This is why we need to associate
+each test file with a specific tester - if we needed to run a test against just one tester it would
+not be possible to figure this out based on a changed file (or we would have to run both).
+Versions for one or more of these builds are derived from the `versions` text file we created earlier.
 And that's it! When a file is changed in one of these folders, it will be built during the
 pull request process, and deployed on merge to main.
-
 
 These are the bases we add packages on top of, and then run tests.
 
@@ -528,12 +533,16 @@ A package file can be used for one or more tests, discussed next.
 
 A test is a yaml file in [tests](tests.yaml). It should typically specify
 one package for a `single-test` experiment, and two for a `double-test` or
-`manual-test`. For example, here is a `single-test` experiment for zlib:
+`manual-test`. For example, here is a `single-test` experiment for zlib
+using libabigail:
 
 ```yaml
 packages:
  # no versions specified implies all
  - name: zlib
+
+tester:
+  name: libabigail
 
 # This can be single-test or pairwise-test
 # pair-wise test implies we require 2 packages 
@@ -541,7 +550,8 @@ experiment:
   name: single-test
 ```
 
-
+And since the name of the testing file will be mapped to the container name,
+we'd want to call this `libabigail-test-zlib.yaml`.
  
 ### Reproduce a Test
 
@@ -619,13 +629,13 @@ results/
 If you already have the container locally, you can also test with the script here:
 
 ```bash
-./build-si-containers test zlib
+./build-si-containers test libabigail-test-zlib
 ```
 
 or force a rebuild.
 
 ```bash
-./build-si-containers test zlib --rebuild
+./build-si-containers test libabigail-test-zlib --rebuild
 ```
 
 It's up to you!
