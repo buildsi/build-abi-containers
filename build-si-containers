@@ -270,7 +270,7 @@ class TestSetup:
         """
         # read in this test file
         test = Test(self.get_test_config(test))
-        return "quay.io/buildsi/%s:latest" % test.name
+        return "ghcr.io/buildsi/%s:latest" % test.name
 
 
     def docker_images(self):
