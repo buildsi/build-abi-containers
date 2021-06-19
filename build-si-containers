@@ -196,6 +196,7 @@ class Test(Config):
 class TestSetup:
     def __init__(self, root):
         """A build-si-containers test setup will look for tests/testers"""
+        self.testers = set()
         self.root = root
         self.check_root()
         self.load_testers()
@@ -228,10 +229,7 @@ class TestSetup:
         """
         Load tester names based on the Dockerfile extensions
         """
-        self.testers = set()
         for tester in os.listdir(self.testers_dir):
-            if "symbolator" in tester:
-                continue
             self.testers.add(re.sub("[.](yml|yaml)", "", tester))
 
     def check_root(self):
@@ -268,11 +266,11 @@ class TestSetup:
         Given a tester and package, generate the list of expected containers.
         """
         containers = []
+        package = TestPackage(self.get_package_config(package))
 
         # For each testing container, and each version, build
         for tester in self.testers:
             tester = Tester(self.get_tester_config(tester))
-            package = TestPackage(self.get_package_config(package))
             containers.append(
                 "quay.io/buildsi/%s-test-%s:latest" % (tester.name, package.name)
             )
@@ -337,7 +335,7 @@ class TestSetup:
     def build(
         self,
         test,
-        testers,
+        testername,
         use_cache=False,
         cache_only=False,
         fail_fast=True,
@@ -371,6 +369,10 @@ class TestSetup:
 
         # For each testing container, and each version, build
         for tester in self.testers:
+
+            # If we don't want all testers and this one isn't chosen, skip
+            if testername != "all" and tester != testername:
+                continue
 
             # If we have a test section
             build_cache = False
@@ -621,7 +623,7 @@ def get_parser():
             "-t",
             dest="tester",
             help="The tester to run tests for.",
-            choices=["libabigail", "all"],
+            choices=["libabigail", "all", "symbolator"],
             default="all",
         )
     return parser

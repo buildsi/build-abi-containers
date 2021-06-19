@@ -5,7 +5,7 @@ package:
   - "2.0.0"
  headers:
   - include
- libregex:
+ libs:
   - lib/libmath.so
   
  bins:

@@ -1,0 +1,7 @@
+tester:
+  name: symbolator
+  version: 0.0.13
+  runscript: runtests.py
+  entrypoint: pytest
+  args:
+   - "-xs"
