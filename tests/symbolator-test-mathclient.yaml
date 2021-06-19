@@ -1,0 +1,12 @@
+packages:
+ # no versions specified implies all
+ - name: mathclient
+
+tester:
+  name: symbolator
+
+# This can be single-test or pairwise-test
+# pair-wise test implies we require 2 packages 
+experiment:
+  name: single-test
+  

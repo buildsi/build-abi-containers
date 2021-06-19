@@ -101,6 +101,17 @@ test_schema = {
                 },
             },
         },
+        "tester": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["name"],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "enum": ["libabigail", "symbolator"],
+                },
+            },
+        },
         "test": {
             "type": "object",
             "additionalProperties": False,
@@ -199,7 +210,6 @@ class TestSetup:
         self.testers = set()
         self.root = root
         self.check_root()
-        self.load_testers()
         self.docker_images()
 
     @property
@@ -224,13 +234,6 @@ class TestSetup:
         Custom spack test packages
         """
         return os.path.join(self.root, "spack")
-
-    def load_testers(self):
-        """
-        Load tester names based on the Dockerfile extensions
-        """
-        for tester in os.listdir(self.testers_dir):
-            self.testers.add(re.sub("[.](yml|yaml)", "", tester))
 
     def check_root(self):
         """
@@ -261,20 +264,14 @@ class TestSetup:
         """
         res = run_command(["docker", "push", container], to_stdout=True)
 
-    def get_containers(self, package, testers):
+    def get_container(self, test):
         """
-        Given a tester and package, generate the list of expected containers.
+        Given a tester name, generate the expected container name
         """
-        containers = []
-        package = TestPackage(self.get_package_config(package))
+        # read in this test file
+        test = Test(self.get_test_config(test))
+        return "ghcr.io/buildsi/%s:latest" % test.name
 
-        # For each testing container, and each version, build
-        for tester in self.testers:
-            tester = Tester(self.get_tester_config(tester))
-            containers.append(
-                "quay.io/buildsi/%s-test-%s:latest" % (tester.name, package.name)
-            )
-        return containers
 
     def docker_images(self):
         """
@@ -335,7 +332,6 @@ class TestSetup:
     def build(
         self,
         test,
-        testername,
         use_cache=False,
         cache_only=False,
         fail_fast=True,
@@ -364,89 +360,67 @@ class TestSetup:
         else:
             sys.exit("Experiment type %s is not supported." % experiment)
 
-        # Return a list of containers build to test later
-        containers = []
+        tester = test.tester['name']
 
-        # For each testing container, and each version, build
-        for tester in self.testers:
+        # If we have a test section
+        build_cache = False
+        if test.test:
+            build_cache = test.test.get("build_cache", build_cache)
 
-            # If we don't want all testers and this one isn't chosen, skip
-            if testername != "all" and tester != testername:
-                continue
+        # Get the tester build template
+        template = self.get_tester_template(tester, build_cache or use_cache, prebuilt)
+        tester = Tester(self.get_tester_config(tester))
 
-            # If we have a test section
-            build_cache = False
-            if test.test:
-                build_cache = test.test.get("build_cache", build_cache)
+        # Right now one container has all versions
+        # Does the tester have extra scripts?
+        bins = []
+        tester_bin = os.path.join(self.testers_dir, tester.name, "bin")
+        if os.path.exists(tester_bin):
+            for filename in os.listdir(tester_bin):
+                bins.append(filename)
 
-            # Get the tester build template
-            template = self.get_tester_template(
-                tester, build_cache or use_cache, prebuilt
-            )
-            tester = Tester(self.get_tester_config(tester))
+        # Render the template and runtests.py file
+        runscript = self.get_tester_runscript(tester).render(
+            tests=tests, tester=tester, packages=packages, experiment=experiment
+        )
+        out = template.render(
+            packages=packages,
+            tester=tester,
+            bins=bins,
+            cache_only=cache_only,
+            test=test,
+        )
+        container_name = self.get_container(test.name)
 
-            # Right now one container has all versions
-            # Does the tester have extra scripts?
-            bins = []
-            tester_bin = os.path.join(self.testers_dir, tester.name, "bin")
-            if os.path.exists(tester_bin):
-                for filename in os.listdir(tester_bin):
-                    bins.append(filename)
+        # Don't build the container if requested to skip
+        if container_name in skips:
+            return container_name
 
-            # Render the template and runtests.py file
-            runscript = self.get_tester_runscript(tester).render(
-                tests=tests, tester=tester, packages=packages, experiment=experiment
-            )
-            out = template.render(
-                packages=packages,
-                tester=tester,
-                bins=bins,
-                cache_only=cache_only,
-                test=test,
-            )
-            container_name = "quay.io/buildsi/%s-test-%s:latest" % (
-                tester.name,
-                test.name,
-            )
+        # Show dockerfile to the user
+        print("Dockerfile:---------\n%s\n" % out)
 
-            # Skip building the container if requested to skip
-            if container_name in skips:
-                containers.append(container_name)
-                continue
+        with tempfile.TemporaryDirectory() as tmp:
 
-            # Show dockerfile to the user
-            print("Dockerfile:---------\n%s\n" % out)
+            # Copy spack packages
+            shutil.copytree(self.spack_packages, os.path.join(tmp, "spack"))
+            write_file(out, os.path.join(tmp, "Dockerfile"))
+            write_file(runscript, os.path.join(tmp, tester.runscript))
+            shutil.copyfile(test_file, os.path.join(tmp, os.path.basename(test_file)))
 
-            with tempfile.TemporaryDirectory() as tmp:
+            # If we have extra files to add, copy them
+            for binfile in bins:
+                shutil.copyfile(os.path.join(tester_bin, binfile), os.path.join(tmp, binfile))
+            cmd = ["docker", "build"]
+            if docker_no_cache:
+                cmd.append("--no-cache")
+            cmd += ["-t", container_name, tmp]
+            res = subprocess.call(cmd)
+            if res == 0:
+                return container_name
+            elif res != 0 and fail_fast:
+                sys.exit("Error building %s" % container_name)
 
-                # Copy spack packages
-                shutil.copytree(self.spack_packages, os.path.join(tmp, "spack"))
-                write_file(out, os.path.join(tmp, "Dockerfile"))
-                write_file(runscript, os.path.join(tmp, tester.runscript))
-                shutil.copyfile(
-                    test_file, os.path.join(tmp, os.path.basename(test_file))
-                )
-
-                # If we have extra files to add, copy them
-                for binfile in bins:
-                    shutil.copyfile(
-                        os.path.join(tester_bin, binfile),
-                        os.path.join(tmp, binfile),
-                    )
-
-                cmd = ["docker", "build"]
-                if docker_no_cache:
-                    cmd.append("--no-cache")
-                cmd += ["-t", container_name, tmp]
-                res = subprocess.call(cmd)
-                if res == 0:
-                    containers.append(container_name)
-                elif res != 0 and fail_fast:
-                    sys.exit("Error building %s" % container_name)
-                else:
-                    print("Issue building %s, but fail fast not set.")
-                    continue
-        return containers
+            print("Issue building %s, but fail fast not set.")
 
     def get_tester_config(self, tester):
         """
@@ -618,14 +592,6 @@ def get_parser():
             help="The root with the tests and testers directories.",
             default=os.getcwd(),
         )
-        command.add_argument(
-            "--tester",
-            "-t",
-            dest="tester",
-            help="The tester to run tests for.",
-            choices=["libabigail", "all", "symbolator"],
-            default="all",
-        )
     return parser
 
 
@@ -650,7 +616,6 @@ def main():
         for test in args.tests:
             setup.build(
                 test,
-                args.tester,
                 use_cache=args.use_cache,
                 fail_fast=args.fail_fast,
                 docker_no_cache=args.docker_no_cache,
@@ -660,8 +625,8 @@ def main():
 
     elif args.command == "deploy":
         for test in args.tests:
-            for container in setup.get_containers(test, args.tester):
-                setup.deploy(container)
+            container = setup.get_container(test)
+            setup.deploy(container)
 
     elif args.command == "test":
         for test in args.tests:
@@ -671,12 +636,12 @@ def main():
             if not args.rebuild:
 
                 # Skip containers that already exist
-                for container in setup.get_containers(test, args.tester):
-                    if container in setup.containers:
-                        skips.append(container)
-            containers = setup.build(
+                container = setup.get_container(test)
+                if container in setup.containers:
+                    skips.append(container)
+
+            container = setup.build(
                 test,
-                args.tester,
                 use_cache=args.use_cache,
                 fail_fast=args.fail_fast,
                 skips=skips,
@@ -684,7 +649,7 @@ def main():
                 cache_only=args.cache_only,
                 prebuilt=args.prebuilt,
             )
-            for container in containers:
+            if container:
                 setup.test(container, args.outdir)
     else:
         help()
