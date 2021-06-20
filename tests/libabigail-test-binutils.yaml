@@ -1,0 +1,9 @@
+packages:
+ # no versions specified implies all
+ - name: binutils
+
+tester:
+  name: libabigail
+
+experiment:
+  name: single-test

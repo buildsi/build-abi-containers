@@ -2,7 +2,8 @@ packages:
  # no versions specified implies all
  - name: mpich
 
-# This can be single-test or pairwise-test
-# pair-wise test implies we require 2 packages 
+tester:
+  name: libabigail
+
 experiment:
   name: single-test

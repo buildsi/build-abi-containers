@@ -1,0 +1,9 @@
+packages:
+ # no versions specified implies all
+ - name: boost
+
+tester:
+  name: symbolator
+
+experiment:
+  name: single-test
