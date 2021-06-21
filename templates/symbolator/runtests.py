@@ -6,7 +6,7 @@ import pytest
 import os
 import sys
 
-# This runscript provides functions to run abidw, abicompat, and abidiff. 
+# This runscript provides functions to run symbolator. 
 
 single_test = True if "{{ experiment }}" == "single-test" else False
 double_test = True if "{{ experiment }}" == "double-test" else False

@@ -1,0 +1,7 @@
+tester:
+  name: smeagle
+  version: 0.0.0
+  runscript: runtests.py
+  entrypoint: pytest
+  args:
+   - "-xs"
