@@ -1,5 +1,5 @@
 FROM ghcr.io/autamus/buildsi-{{ test.name }}:latest as base
-FROM quay.io/buildsi/{{ tester.name }}:{{ tester.version }}
+FROM ghcr.io/buildsi/{{ tester.name }}:{{ tester.version }}
 
 COPY --from=base /opt/spack /opt/spack
 

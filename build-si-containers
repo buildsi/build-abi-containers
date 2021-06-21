@@ -108,7 +108,7 @@ test_schema = {
             "properties": {
                 "name": {
                     "type": "string",
-                    "enum": ["libabigail", "symbolator"],
+                    "enum": ["libabigail", "symbolator", "smeagle"],
                 },
             },
         },
@@ -272,7 +272,6 @@ class TestSetup:
         test = Test(self.get_test_config(test))
         return "ghcr.io/buildsi/%s:latest" % test.name
 
-
     def docker_images(self):
         """
         Load docker images into the client to determine which already exist.
@@ -360,7 +359,7 @@ class TestSetup:
         else:
             sys.exit("Experiment type %s is not supported." % experiment)
 
-        tester = test.tester['name']
+        tester = test.tester["name"]
 
         # If we have a test section
         build_cache = False
@@ -409,7 +408,9 @@ class TestSetup:
 
             # If we have extra files to add, copy them
             for binfile in bins:
-                shutil.copyfile(os.path.join(tester_bin, binfile), os.path.join(tmp, binfile))
+                shutil.copyfile(
+                    os.path.join(tester_bin, binfile), os.path.join(tmp, binfile)
+                )
             cmd = ["docker", "build"]
             if docker_no_cache:
                 cmd.append("--no-cache")
