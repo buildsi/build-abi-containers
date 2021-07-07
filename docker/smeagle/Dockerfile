@@ -1,4 +1,4 @@
-FROM ghcr.io/autamus/dyninst
+FROM ghcr.io/autamus/dyninst:master
 # docker build -t ghcr.io/buildsi/smeagle:0.0.0 .
 ENV DEBIAN_FRONTEND=noninteractive
 ARG LIBRARY_VERSION=0.0.0
@@ -18,7 +18,7 @@ RUN cd /tmp && \
     pip3 install . && \
     pip3 install pytest
 RUN wget https://github.com/buildsi/Smeagle/archive/refs/tags/${LIBRARY_VERSION}.tar.gz && \
-    tar -xzvf Smeagle-${LIBRARY_VERSION}.tar.gz && \
+    tar -xzvf ${LIBRARY_VERSION}.tar.gz && \
     cd Smeagle-${LIBRARY_VERSION} && \
     make
 ENV PATH=/Smeagle-${LIBRARY_VERSION}/build/standalone:$PATH
