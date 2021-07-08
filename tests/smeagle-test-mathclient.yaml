@@ -1,0 +1,12 @@
+packages:
+ # no versions specified implies all
+ - name: mathclient
+
+tester:
+  name: smeagle
+
+# This can be single-test or double-test
+# double-test implies we require 2 packages 
+experiment:
+  name: single-test
+  
