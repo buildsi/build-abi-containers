@@ -48,11 +48,7 @@ package_schema = {
         "package": {
             "type": "object",
             "additionalProperties": False,
-            "required": [
-                "name",
-                "versions",
-                "headers",
-            ],
+            "required": ["name", "versions", "headers",],
             "properties": {
                 "name": {"type": "string"},
                 "versions": {"type": "array", "items": {"type": "string"}},
@@ -66,9 +62,7 @@ package_schema = {
         "test": {
             "type": "object",
             "additionalProperties": False,
-            "properties": {
-                "build_cache": {"type": "boolean"},
-            },
+            "properties": {"build_cache": {"type": "boolean"},},
         },
     },
 }
@@ -115,9 +109,7 @@ test_schema = {
         "test": {
             "type": "object",
             "additionalProperties": False,
-            "properties": {
-                "build_cache": {"type": "boolean"},
-            },
+            "properties": {"build_cache": {"type": "boolean"},},
         },
     },
 }

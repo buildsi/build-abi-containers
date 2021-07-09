@@ -98,12 +98,13 @@ def run(cmd):
 
 
 @is_single_test
-@pytest.mark.parametrize('package,version,libs,libregex', [{% for package in packages %}{% for version in package.versions %}
+@pytest.mark.parametrize('package,version,bins,libs,libregex', [{% for package in packages %}{% for version in package.versions %}
     ("{{ package.name }}", "{{ version }}",
+    [{% if package.bins %}{% for bin in package.bins %}"{{ bin }}"{% if loop.last %}{% else %},{% endif %}{% endfor %}{% endif %}],
     [{% if package.libs %}{% for lib in package.libs %}"{{ lib }}"{% if loop.last %}{% else %},{% endif %}{% endfor %}{% endif %}],
     [{% if packages.libregex %}{% for libregex in packages.libregex %}"{{ libregex }}"{% if loop.last %}{% else %},{% endif %}{% endfor %}{% endif %}]){% if loop.last %}{% else %},{% endif %}{% endfor %}{% endfor %}])
 
-def test_single_package_smeagle_generate(package, version, libs, libregex):
+def test_single_package_smeagle_generate(package, version, bins, libs, libregex):
     """
     Smeagle tests to generate yaml
     """
@@ -127,3 +128,11 @@ def test_single_package_smeagle_generate(package, version, libs, libregex):
             continue
         print("Testing %s@%s %s with smeagle" % (package, version, libname))
         run_smeagle(package, version, path, libname)
+        
+    # Now test just binaries        
+    for binary in bins:
+        lib = os.path.join(path, binary)
+        if not os.path.exists(lib):
+            continue
+        print("Testing %s@%s %s with smeagle" % (package, version, lib))
+        run_smeagle(package, version, path, binary)
