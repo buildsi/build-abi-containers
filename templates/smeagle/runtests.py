@@ -33,8 +33,9 @@ def run_smeagle(package, version, path, libname):
     if not os.path.exists(result_dir):
        os.makedirs(result_dir)
 
-    # Smeagle will generate yaml by default
+    # Smeagle will generate yaml by default, also generate asp
     run("time -p Smeagle -l %s > %s/%s.yaml" % (lib, out_dir, libname))
+    run("time -p Smeagle -l %s -f asp > %s/%s.lp" % (lib, out_dir, libname))
 
 
 
