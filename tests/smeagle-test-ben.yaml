@@ -5,6 +5,9 @@ packages:
 tester:
   name: smeagle
 
+test:
+  dockerfile: templates/ben/Dockerfile
+
 experiment:
   name: single-test
     

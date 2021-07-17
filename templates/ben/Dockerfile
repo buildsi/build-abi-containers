@@ -1,13 +1,16 @@
-FROM spack/ubuntu-bionic:latest as base
+FROM gcc as base
+ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR /code
 
+RUN apt-get update && apt-get install -y git curl python3-botocore python3-boto3
+RUN git clone --depth 1 https://github.com/spack/spack /opt/spack
 ENV PATH=/opt/spack/bin:$PATH
 RUN echo "packages:" > packages.yaml &&\
     echo "  all:" >> packages.yaml &&\
     echo "    target: [x86_64]" >> packages.yaml
 
 COPY spack/ /test-packages
-RUN apt-get update && apt-get install -y curl python3-botocore python3-boto3 && \
-    spack repo add /test-packages && \
+RUN spack repo add /test-packages && \
     spack config add -f "packages.yaml" && \
     {% for package in packages %}{% for version in package.versions %}spack install --no-checksum --source {% if cache_only %}--cache-only{% endif %} --deprecated {{ package.name }}@{{ version }} && \{% endfor %}{% endfor %}
     printf "Finished installation attempts\n"

@@ -5,5 +5,8 @@ packages:
 tester:
   name: libabigail
 
+test:
+  dockerfile: templates/ben/Dockerfile
+
 experiment:
   name: single-test  

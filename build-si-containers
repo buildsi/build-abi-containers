@@ -48,7 +48,11 @@ package_schema = {
         "package": {
             "type": "object",
             "additionalProperties": False,
-            "required": ["name", "versions", "headers",],
+            "required": [
+                "name",
+                "versions",
+                "headers",
+            ],
             "properties": {
                 "name": {"type": "string"},
                 "versions": {"type": "array", "items": {"type": "string"}},
@@ -62,7 +66,9 @@ package_schema = {
         "test": {
             "type": "object",
             "additionalProperties": False,
-            "properties": {"build_cache": {"type": "boolean"},},
+            "properties": {
+                "build_cache": {"type": "boolean"},
+            },
         },
     },
 }
@@ -109,7 +115,11 @@ test_schema = {
         "test": {
             "type": "object",
             "additionalProperties": False,
-            "properties": {"build_cache": {"type": "boolean"},},
+            "properties": {
+                "prebuilt": {"type": "boolean"},
+                "cache_only": {"type": "boolean"},
+                "dockerfile": {"type": "string"},
+            },
         },
     },
 }
@@ -184,6 +194,17 @@ class TestPackage(Config):
 class Test(Config):
 
     schema = test_schema
+
+    def __init__(self, config_file, **kwargs):
+        # Set and load config file
+        super().__init__(config_file)
+        if "test" not in self.config:
+            self.config["test"] = {}
+
+        # Command line args over-ride config
+        for term in ["prebuilt", "use_cache"]:
+            if term in kwargs:
+                self.config["test"][term] = kwargs.get(term)
 
     def __str__(self):
         return "<test:%s>" % os.path.basename(self.config_file)
@@ -335,7 +356,7 @@ class TestSetup:
         """
         # read in this test file
         test_file = self.get_test_config(test)
-        test = Test(test_file)
+        test = Test(test_file, prebuilt=prebuilt, use_cache=use_cache)
 
         # Containers to skip building
         skips = skips or []
@@ -353,13 +374,8 @@ class TestSetup:
 
         tester = test.tester["name"]
 
-        # If we have a test section
-        build_cache = False
-        if test.test:
-            build_cache = test.test.get("build_cache", build_cache)
-
         # Get the tester build template
-        template = self.get_tester_template(tester, build_cache or use_cache, prebuilt)
+        template = self.get_tester_template(tester, test)
         tester = Tester(self.get_tester_config(tester))
 
         # Right now one container has all versions
@@ -465,17 +481,25 @@ class TestSetup:
         template = template.replace(self.templates_dir, "").strip("/")
         return env.get_template(template)
 
-    def get_tester_template(self, tester, use_cache=False, prebuilt=False):
+    def get_tester_template(self, tester, test):
         """
         Given a package and tester, return the container template.
         """
         dockerfile = os.path.join(self.templates_dir, tester, "Dockerfile")
-        if not os.path.exists(dockerfile) and prebuilt:
+        default = os.path.join(self.templates_dir, "Dockerfile.default")
+
+        # Does the test defines a specific dockerfile?
+        test_dockerfile = test.test.get("dockerfile")
+
+        if os.path.exists(test_dockerfile):
+            dockerfile = os.path.abspath(test_dockerfile)
+        elif not os.path.exists(dockerfile) and test.test.get("prebuilt") == True:
             dockerfile = os.path.join(self.templates_dir, "Dockerfile.prebuilt")
-        elif not os.path.exists(dockerfile) and use_cache:
+        elif not os.path.exists(dockerfile) and test.test.get("use_cache" == True):
             dockerfile = os.path.join(self.templates_dir, "Dockerfile.buildcache")
-        else:
-            dockerfile = os.path.join(self.templates_dir, "Dockerfile.default")
+        elif not os.path.exists(dockerfile):
+            dockerfile = default
+
         dockerfile = dockerfile.replace(self.templates_dir, "").strip("/")
         return env.get_template(dockerfile)
 
