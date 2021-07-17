@@ -1,0 +1,12 @@
+packages:
+ # no versions specified implies all
+ - name: ben
+
+tester:
+  name: libabigail
+
+test:
+  dockerfile: templates/ben/Dockerfile
+
+experiment:
+  name: single-test  

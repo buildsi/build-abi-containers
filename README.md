@@ -551,7 +551,27 @@ experiment:
 ```
 
 And since the name of the testing file will be mapped to the container name,
-we'd want to call this `libabigail-test-zlib.yaml`.
+we'd want to call this `libabigail-test-zlib.yaml`. If you want to give your
+test a custom Dockerfile base (e.g., some different version of the Dockerfile's
+under [templates](templates) you can add this as an additional section:
+
+```
+packages:
+ # no versions specified implies all
+ - name: ben
+
+tester:
+  name: libabigail
+
+test:
+  dockerfile: templates/ben/Dockerfile
+
+experiment:
+  name: single-test  
+```
+
+The dockerfile should always be in the context of the [templates](templates)
+directory.
  
 ### Reproduce a Test
 
