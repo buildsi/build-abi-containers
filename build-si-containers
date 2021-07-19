@@ -491,7 +491,7 @@ class TestSetup:
         # Does the test defines a specific dockerfile?
         test_dockerfile = test.test.get("dockerfile")
 
-        if os.path.exists(test_dockerfile):
+        if test_dockerfile and os.path.exists(test_dockerfile):
             dockerfile = os.path.abspath(test_dockerfile)
         elif not os.path.exists(dockerfile) and test.test.get("prebuilt") == True:
             dockerfile = os.path.join(self.templates_dir, "Dockerfile.prebuilt")
