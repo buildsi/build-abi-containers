@@ -1,0 +1,11 @@
+package:
+ name: tim
+ versions:
+  - main
+ headers:
+  - include
+ libs:
+  - lib/libfoo.so
+ bins:
+  - bin/reader
+  - bin/test
