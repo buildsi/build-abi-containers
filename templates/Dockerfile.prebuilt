@@ -9,6 +9,7 @@ COPY {{ test.config_basename }} /build-si/tests.yaml
 COPY {{ tester.runscript }} /build-si/{{ tester.runscript }}
 {% for bin in bins %}COPY {{ bin }} /usr/local/bin/{{ bin }}
 {% endfor %}
-RUN apt-get install -y time python3-pytest && \
+RUN apt-get install -y time python3-dev python3-pip && \
+    pip3 install pytest && \
     mkdir -p /results && chmod +x /build-si/{{ tester.runscript }} {% if bins %}{% for bin in bins %} && chmod +x /usr/local/bin/{{ bin }}{% endfor %}{% endif %}
 ENTRYPOINT ["{{ tester.entrypoint }}", {% for arg in tester.args %}"{{ arg }}", {% endfor %}"/build-si/{{ tester.runscript }}"]
