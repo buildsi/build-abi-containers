@@ -136,6 +136,7 @@ tester_schema = {
             "properties": {
                 "name": {"type": "string"},
                 "runscript": {"type": "string"},
+                "container": {"type": "string"},
                 "entrypoint": {"type": "string"},
                 "version": {"type": "string"},
                 "args": {"type": "array", "items": {"type": "string"}},
