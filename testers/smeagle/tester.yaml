@@ -1,6 +1,8 @@
 tester:
   name: smeagle
-  version: 0.0.1
+
+  # This version comes from ghcr.io/buildsi/Smeagle
+  version: 0.0.11
   runscript: runtests.py
   entrypoint: pytest
   args:
