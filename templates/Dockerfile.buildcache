@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y curl python3-botocore python3-boto3 && 
     {% for package in packages %}{% for version in package.versions %}spack install --source {% if cache_only %}--cache-only{% endif %} {{ package.name }}@{{ version }} && \{% endfor %}{% endfor %}
     printf "Finished installation attempts\n"
 
-FROM ghcr.io/buildsi/{{ tester.name }}:{{ tester.version }}
+FROM {% if tester.container %}{{ tester.container }}{% else %}ghcr.io/buildsi/{{ tester.name }}{% endif %}:{{ tester.version }}
 COPY --from=base /opt/spack /opt/spack
 
 WORKDIR /build-si/

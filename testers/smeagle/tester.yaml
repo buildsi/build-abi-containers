@@ -1,7 +1,7 @@
 tester:
   name: smeagle
-
   # This version comes from ghcr.io/buildsi/Smeagle
+  container: ghcr.io/buildsi/smeagle-pytest
   version: 0.0.11
   runscript: runtests.py
   entrypoint: pytest
