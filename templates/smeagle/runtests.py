@@ -34,8 +34,7 @@ def run_smeagle(package, version, path, libname):
        os.makedirs(result_dir)
 
     # Smeagle will generate yaml by default, also generate asp
-    run("time -p Smeagle -l %s > %s/%s.yaml" % (lib, out_dir, libname))
-    run("time -p Smeagle -l %s -f asp > %s/%s.lp" % (lib, out_dir, libname))
+    run("time -p Smeagle -l %s > %s/%s.json" % (lib, out_dir, libname))
 
 
 
@@ -107,7 +106,7 @@ def run(cmd):
 
 def test_single_package_smeagle_generate(package, version, bins, libs, libregex):
     """
-    Smeagle tests to generate yaml
+    Smeagle tests to generate json
     """
     paths = find_install_paths(package)
 
