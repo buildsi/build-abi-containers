@@ -1,5 +1,5 @@
 FROM ghcr.io/autamus/buildsi-{{ test.name }}:latest as base
-FROM ghcr.io/buildsi/{{ tester.name }}:{{ tester.version }}
+FROM {% if tester.container %}{{ tester.container }}{% else %}ghcr.io/buildsi/{{ tester.name }}{% endif %}:{{ tester.version }}
 
 COPY --from=base /opt/spack /opt/spack
 
