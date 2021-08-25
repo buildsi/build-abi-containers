@@ -1,0 +1,8 @@
+packages:
+ - name: mpich
+
+tester:
+  name: smeagle
+
+experiment:
+  name: single-test
