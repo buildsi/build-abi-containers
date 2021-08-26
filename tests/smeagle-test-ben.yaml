@@ -4,6 +4,7 @@ packages:
 
 tester:
   name: smeagle
+  version: 0.0.11
 
 test:
   dockerfile: templates/ben/Dockerfile

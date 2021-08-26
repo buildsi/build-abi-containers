@@ -571,7 +571,23 @@ experiment:
 ```
 
 The dockerfile should always be in the context of the [templates](templates)
-directory.
+directory. If you want to pin the test to use a specific version of the tester,
+then you can do the following:
+
+```
+packages:
+ - name: ben
+
+tester:
+  name: smeagle
+  version: 0.0.11
+
+experiment:
+  name: single-test  
+```
+
+This will only work for the default Dockerfile templates - if you want to use
+the test variable here, then you'll need reference `{{ test.version }}`.
  
 ### Reproduce a Test
 
