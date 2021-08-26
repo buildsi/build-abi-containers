@@ -78,6 +78,7 @@ test_schema = {
     "title": "build-abi-containers test schema",
     "type": "object",
     "additionalProperties": False,
+    "requiredProperties": ["packages", "experiment", "tester"],
     "properties": {
         "packages": {
             "type": "array",
@@ -110,6 +111,7 @@ test_schema = {
                     "type": "string",
                     "enum": ["libabigail", "symbolator", "smeagle"],
                 },
+                "version": {"type": ["string"]},
             },
         },
         "test": {
@@ -206,6 +208,13 @@ class Test(Config):
         for term in ["prebuilt", "use_cache"]:
             if term in kwargs:
                 self.config["test"][term] = kwargs.get(term)
+
+    @property
+    def version(self):
+        """
+        If the test tester has a version, return it
+        """
+        return self.config["tester"].get("version")
 
     def __str__(self):
         return "<test:%s>" % os.path.basename(self.config_file)
