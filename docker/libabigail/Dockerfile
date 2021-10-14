@@ -1,7 +1,7 @@
 FROM ubuntu:20.04
-# docker build --build-arg LIBRARY_VERSION=1.8 -t quay.io/buildsi/libabigail:1.8
+# docker build --build-arg LIBRARY_VERSION=2.0 -t ghcr.io/buildsi/libabigail:2.0 .
 ENV DEBIAN_FRONTEND=noninteractive
-ARG LIBRARY_VERSION=1.8.2
+ARG LIBRARY_VERSION=2.0
 RUN apt-get update && apt-get install -y build-essential \
     curl \
     libelf-dev \
@@ -27,9 +27,10 @@ RUN ldconfig && \
     wget http://mirrors.kernel.org/sourceware/libabigail/libabigail-${LIBRARY_VERSION}.tar.gz && \
     tar -xvf libabigail-${LIBRARY_VERSION}.tar.gz && \
     cd libabigail-${LIBRARY_VERSION} && \
+    autoreconf -fi && \
     mkdir build && \
     cd build && \
-    ../configure --prefix=/usr/local  && \
+    ../configure --prefix=/usr/local && \
     make all install && \
     ldconfig && \
     pip install pytest
