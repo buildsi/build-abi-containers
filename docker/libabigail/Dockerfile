@@ -1,5 +1,7 @@
 FROM ubuntu:20.04
+
 # docker build --build-arg LIBRARY_VERSION=2.0 -t ghcr.io/buildsi/libabigail:2.0 .
+
 ENV DEBIAN_FRONTEND=noninteractive
 ARG LIBRARY_VERSION=2.0
 RUN apt-get update && apt-get install -y build-essential \
