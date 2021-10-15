@@ -36,4 +36,3 @@ RUN ldconfig && \
     make all install && \
     ldconfig && \
     pip install pytest
-
